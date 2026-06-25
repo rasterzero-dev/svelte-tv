@@ -558,7 +558,7 @@
       onLeft={focusMenu}
       onFocus={onContentFocus}
     >
-      <Row gap={18}>
+      <Row gap={0}>
         <Button
           padding={16}
           color="#1e293bff"

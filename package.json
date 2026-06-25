@@ -40,8 +40,11 @@
     "lint:fix": "prettier --write \"**/*.{svelte,ts,js,json,md}\"",
     "test": "vitest",
     "build:playground": "vite build playground --config ./vite.config.ts",
+    "build:playground:lab": "vite build playground-lab --config ./playground-lab/vite.config.ts",
     "preview": "vite preview playground --config ./vite.config.ts --host 0.0.0.0 --port 4173 --strictPort",
-    "dev": "vite dev playground --config ./vite.config.ts --host 0.0.0.0 --port 5173 --strictPort"
+    "preview:lab": "vite preview playground-lab --config ./playground-lab/vite.config.ts --host 0.0.0.0 --port 4175 --strictPort",
+    "dev": "vite dev playground --config ./vite.config.ts --host 0.0.0.0 --port 5173",
+    "dev:lab": "vite dev playground-lab --config ./playground-lab/vite.config.ts --host 0.0.0.0 --port 5175 --strictPort"
   },
   "keywords": [
     "svelte",
