@@ -1,4 +1,4 @@
-<a href="https://sveltetv.dev">
+<a href="https://rasterzero-dev.github.io/svelte-tv-docs/">
 	<picture>
 		<source media="(prefers-color-scheme: dark)" srcset="banner_dark.png">
 		<img src="banner_white.png" alt="Svelte TV" />
@@ -6,7 +6,7 @@
 </a>
 
 <h1 align="center">
-  <a href="https://sveltetv.dev/">
+  <a href="https://rasterzero-dev.github.io/svelte-tv-docs//">
     Svelte TV
   </a>
 </h1>
@@ -29,17 +29,11 @@
 </p>
 
 <h3 align="center">
-  <a href="https://sveltetv.dev/docs/getting-started">Getting Started</a>
+  <a href="https://rasterzero-dev.github.io/svelte-tv-docs/docs/getting-started/">Getting Started</a>
   <span> &middot; </span>
-  <a href="https://sveltetv.dev/docs/learn">Learn the Basics</a>
-  <span> &middot; </span>
-  <a href="https://sveltetv.dev/showcase">Showcase</a>
+  <a href="https://rasterzero-dev.github.io/svelte-tv-docs/docs/essentials/focus/">Learn the Basics</a>
   <span> &middot; </span>
   <a href="https://sveltetv.dev/docs/contributing">Contribute</a>
-  <span> &middot; </span>
-  <a href="https://sveltetv.dev/community">Community</a>
-  <span> &middot; </span>
-  <a href="https://sveltetv.dev/support">Support</a>
 </h3>
 
 Svelte TV brings [**Svelte**'s][s] component model to [**Lightning**][l]-powered living room apps. With Svelte TV, you build renderer-native, focus-driven interfaces for Canvas and WebGL.
@@ -89,10 +83,9 @@ We want contributing to Svelte TV to be focused and practical. Read the [Contrib
 
 Svelte TV is Apache-2.0 licensed, as found in the [LICENSE][license] file.
 
-[requirements]: https://sveltetv.dev/docs/requirements
-[getting-started]: https://sveltetv.dev/docs/getting-started
-[learn]: https://sveltetv.dev/docs/learn
-[docs]: https://sveltetv.dev/docs
+[requirements]: https://rasterzero-dev.github.io/svelte-tv-docs/docs/requirements
+[getting-started]: https://rasterzero-dev.github.io/svelte-tv-docs/docs/getting-started/
+[docs]: https://rasterzero-dev.github.io/svelte-tv-docs/docs
 [roadmap]: https://sveltetv.dev/roadmap
 [contribute]: https://sveltetv.dev/docs/contributing
 [license]: ./LICENSE
