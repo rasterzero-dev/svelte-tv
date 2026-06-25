@@ -1,7 +1,7 @@
 {
   "name": "svelte-tv",
-  "version": "0.1.0",
-  "description": "Svelte bindings for Lightning TV canvas rendering",
+  "version": "1.0.2",
+  "description": "Svelte speed for every screen 🚀✨",
   "type": "module",
   "exports": {
     ".": {
