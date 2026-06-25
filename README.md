@@ -60,7 +60,7 @@ Because Svelte 5 relies on [JavaScript Proxy](https://developer.mozilla.org/en-U
 
 ## 🎉 Building your first Svelte TV app
 
-Follow the [Getting Started guide][getting-started] to create your first Svelte TV app. If you are new to focus-driven TV interfaces, start with [Learn the Basics][learn].
+Follow the [Getting Started guide][getting-started] to create your first Svelte TV app. If you are new to focus-driven TV interfaces, start with [Learn the Basics](https://rasterzero-dev.github.io/svelte-tv-docs/docs/essentials/focus/)
 
 ## 📖 Documentation
 
