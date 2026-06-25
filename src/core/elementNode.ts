@@ -197,6 +197,40 @@ const EFFECT_SHADER_KEYS = [
   'shadow',
 ] as const satisfies ReadonlyArray<keyof StyleEffects>;
 
+function getBoxValue(
+  value: number | number[] | undefined,
+  index: number,
+  defaultValue = 0,
+) {
+  if (value === undefined) return defaultValue;
+  if (typeof value === 'number') return value;
+
+  const len = value.length;
+  const result =
+    len === 2
+      ? index % 2 === 0
+        ? value[0]
+        : value[1]
+      : len === 3
+        ? index === 0
+          ? value[0]
+          : index === 2
+            ? value[2]
+            : value[1]
+        : value[index];
+
+  return result ?? defaultValue;
+}
+
+function getPadding(node: ElementNode) {
+  return {
+    top: node.paddingTop ?? getBoxValue(node.padding, 0),
+    right: node.paddingRight ?? getBoxValue(node.padding, 1),
+    bottom: node.paddingBottom ?? getBoxValue(node.padding, 2),
+    left: node.paddingLeft ?? getBoxValue(node.padding, 3),
+  };
+}
+
 const parseAndAssignShaderProps = (
   prefix: string,
   obj: Record<string, unknown>,
@@ -1773,8 +1807,14 @@ export class ElementNode {
     const parentWidth = parent.w || 0;
     const parentHeight = parent.h || 0;
 
-    props.x = props.x || 0;
-    props.y = props.y || 0;
+    const parentPadding =
+      parent.display === 'flex' ? undefined : getPadding(parent);
+    if (props.x === undefined) {
+      props.x = parentPadding?.left ?? 0;
+    }
+    if (props.y === undefined) {
+      props.y = parentPadding?.top ?? 0;
+    }
     props.parent = parent.lng as IRendererNode;
 
     if (this.right || this.right === 0) {
