@@ -33,6 +33,14 @@
     "LICENSE",
     "NOTICE"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rasterzero-dev/svelte-tv.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rasterzero-dev/svelte-tv/issues"
+  },
+  "homepage": "https://rasterzero-dev.github.io/svelte-tv-docs",
   "scripts": {
     "build": "svelte-package && tsc -p tsconfig.build.json",
     "check": "svelte-check --tsconfig tsconfig.json",

@@ -1,7 +1,7 @@
 <a href="https://rasterzero-dev.github.io/svelte-tv-docs/">
 	<picture>
-		<source media="(prefers-color-scheme: dark)" srcset="banner_dark.png">
-		<img src="banner_white.png" alt="Svelte TV" />
+		<source media="(prefers-color-scheme: dark)" srcset="assets/banner_dark.png">
+		<img src="assets/banner_white.png" alt="Svelte TV" />
 	</picture>
 </a>
 
