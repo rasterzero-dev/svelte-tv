@@ -70,7 +70,7 @@ The documentation covers renderer setup, focus handling, layout, routing, effect
 
 ## 📄 License
 
-Svelte TV is Apache-2.0 licensed, as found in the [LICENSE][license] file.
+Svelte TV is MIT licensed, as found in the [LICENSE][license] file.
 
 [requirements]: https://rasterzero-dev.github.io/svelte-tv-docs/docs/requirements
 [getting-started]: https://rasterzero-dev.github.io/svelte-tv-docs/docs/getting-started/
