@@ -2,16 +2,31 @@ import { getContext, setContext } from 'svelte';
 import type { RouteContextValue } from './types.js';
 
 const routerContext = Symbol('svelte-tv-router');
+let activeRouterContext: RouteContextValue | undefined;
 
 export function setRouterContext(value: RouteContextValue) {
+  activeRouterContext = value;
   setContext(routerContext, value);
 }
 
+export function clearRouterContext(value: RouteContextValue) {
+  if (activeRouterContext === value) activeRouterContext = undefined;
+}
+
 export function getRouterContext() {
-  const context = getContext<RouteContextValue | undefined>(routerContext);
+  let context: RouteContextValue | undefined;
+  try {
+    context = getContext<RouteContextValue | undefined>(routerContext);
+  } catch (error) {
+    if (activeRouterContext) return activeRouterContext;
+    throw error;
+  }
+
   if (!context) {
+    if (activeRouterContext) return activeRouterContext;
     throw new Error('Router context is not available.');
   }
+
   return context;
 }
 

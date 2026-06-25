@@ -2,7 +2,7 @@
   import type { Component, Snippet } from 'svelte';
   import { onDestroy, onMount } from 'svelte';
   import RouteView from './RouteView.svelte';
-  import { setRouterContext } from './context.js';
+  import { clearRouterContext, setRouterContext } from './context.js';
   import { createLocation, matchRoutes, routeKey } from './match.js';
   import { setRouteParentContext } from './routeContext.js';
   import type {
@@ -41,7 +41,7 @@
     window.location.hash = path;
   };
 
-  setRouterContext({
+  const context = {
     registerRoute(route) {
       routes = [...routes, route];
       return () => {
@@ -53,7 +53,9 @@
     params: () => activeParams,
     routeData: () => activeData,
     currentRoute: () => activeRoute,
-  });
+  };
+
+  setRouterContext(context);
 
   setRouteParentContext({
     registerRoute(route) {
@@ -109,7 +111,10 @@
     window.addEventListener('hashchange', updateLocation);
   });
 
-  onDestroy(() => window.removeEventListener('hashchange', updateLocation));
+  onDestroy(() => {
+    window.removeEventListener('hashchange', updateLocation);
+    clearRouterContext(context);
+  });
 </script>
 
 {@render props.children?.()}
