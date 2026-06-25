@@ -1,6 +1,6 @@
 {
   "name": "svelte-tv",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Svelte speed for every screen 🚀✨",
   "type": "module",
   "exports": {
@@ -52,7 +52,7 @@
     "canvas",
     "tv"
   ],
-  "license": "Apache-2.0",
+  "license": "MIT",
   "peerDependencies": {
     "@lightningjs/renderer": "^3.0.6",
     "svelte": "^5.56.4"
