@@ -1,0 +1,31 @@
+import type { TextureMap } from '@lightningjs/renderer';
+import { renderer } from '../../core/index.js';
+
+export interface SpriteDef {
+  name: string | number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export function createSpriteMap(
+  src: string,
+  subTextures: SpriteDef[],
+): Record<string, InstanceType<TextureMap['SubTexture']>> {
+  const spriteMapTexture = renderer.createTexture('ImageTexture', { src });
+
+  return subTextures.reduce<
+    Record<string, InstanceType<TextureMap['SubTexture']>>
+  >((acc, t) => {
+    const { x, y, width, height } = t;
+    acc[t.name] = renderer.createTexture('SubTexture', {
+      texture: spriteMapTexture,
+      x,
+      y,
+      w: width,
+      h: height,
+    });
+    return acc;
+  }, {});
+}

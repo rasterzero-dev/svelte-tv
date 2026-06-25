@@ -1,0 +1,228 @@
+import { describe, expect, it, vi } from 'vitest';
+import {
+  activeElement,
+  applyNodeProps,
+  ElementNode,
+  focusPath,
+  hasFocus,
+  setActiveElementCore,
+} from '../src/core/index.js';
+import { navigableForwardFocus } from '../src/primitives/utils/handleNavigation.js';
+
+function renderedNode() {
+  const node = new ElementNode('view');
+  node.rendered = true;
+  return node;
+}
+
+describe('core', () => {
+  it('stores color props as renderer numbers', () => {
+    const node = new ElementNode('view');
+    node.color = '#11223344';
+    expect(node.lng.color).toBe(0x11223344);
+  });
+
+  it('updates active element and focus path', () => {
+    const parent = renderedNode();
+    const child = renderedNode();
+    parent.insertChild(child);
+
+    setActiveElementCore(child);
+
+    expect(activeElement()).toBe(child);
+    expect(focusPath()[0]).toBe(child);
+    expect(hasFocus(child)).toBe(true);
+    expect(hasFocus(parent)).toBe(true);
+  });
+
+  it('forwards navigable focus to the selected child', async () => {
+    const row = renderedNode();
+    const first = renderedNode();
+    const second = renderedNode();
+    row.insertChild(first);
+    row.insertChild(second);
+    row.selected = 1;
+
+    navigableForwardFocus.call(row, row);
+    await Promise.resolve();
+
+    expect(activeElement()).toBe(second);
+  });
+
+  it('restores prop values when state styles are removed', () => {
+    const node = new ElementNode('view');
+    node.color = '#1e293bff';
+    node.style = {
+      $focus: {
+        color: '#38bdf8ff',
+        scale: 1.04,
+      },
+    };
+
+    node.states.add('$focus');
+    expect(node.lng.color).toBe(0x38bdf8ff);
+
+    node.states.remove('$focus');
+    expect(node.lng.color).toBe(0x1e293bff);
+    expect(node.scale).toBe(1);
+  });
+
+  it('reapplies state styles when a focused node is reused with new props', () => {
+    const node = renderedNode();
+    applyNodeProps(node, {
+      color: '#1e293bff',
+      style: { $focus: { color: '#38bdf8ff', scale: 1.04 } },
+    });
+
+    node.states.add('$focus');
+    expect(node.lng.color).toBe(0x38bdf8ff);
+
+    applyNodeProps(node, {
+      color: '#334155ff',
+      style: { $focus: { color: '#f59e0bff', scale: 1.08 } },
+    });
+
+    expect(node.lng.color).toBe(0xf59e0bff);
+    expect(node.scale).toBe(1.08);
+
+    node.states.remove('$focus');
+    expect(node.lng.color).toBe(0x334155ff);
+    expect(node.scale).toBe(1);
+  });
+
+  it('stops an in-flight transition before starting another for the same prop', () => {
+    const first = {
+      start: vi.fn(function () {
+        return first;
+      }),
+      stop: vi.fn(function () {
+        return first;
+      }),
+      waitUntilStopped: vi.fn(() => new Promise<void>(() => {})),
+    };
+    const second = {
+      start: vi.fn(function () {
+        return second;
+      }),
+      stop: vi.fn(function () {
+        return second;
+      }),
+      waitUntilStopped: vi.fn(() => new Promise<void>(() => {})),
+    };
+    const animate = vi.fn()
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second);
+    const node = renderedNode();
+    node.lng = { animate } as any;
+    node.transition = { color: true };
+
+    node.color = '#38bdf8ff';
+    node.color = '#1e293bff';
+
+    expect(first.stop).toHaveBeenCalledTimes(1);
+    expect(animate).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps state fallback values while blur transitions are still running', () => {
+    const pending = new Promise<void>(() => {});
+    const animate = vi.fn(() => {
+      const controller = {
+        state: 'running' as 'running' | 'stopped',
+        start: vi.fn(() => controller),
+        stop: vi.fn(() => {
+          controller.state = 'stopped' as const;
+          return controller;
+        }),
+        waitUntilStopped: vi.fn(() => pending),
+      };
+      return controller;
+    });
+    const node = renderedNode();
+    node.lng = {
+      color: 0x1e293bff,
+      scale: 1,
+      animate,
+    } as any;
+    node.style = {
+      $focus: {
+        color: '#38bdf8ff',
+        scale: 1.04,
+      },
+    };
+    node.transition = { color: true, scale: true };
+
+    node.states.add('$focus');
+    node.states.remove('$focus');
+    node.lng.color = 0x2b6d91ff;
+    node.lng.scale = 1.02;
+    node.states.add('$focus');
+    node.states.remove('$focus');
+
+    expect(animate).toHaveBeenLastCalledWith(
+      { scale: 1 },
+      expect.any(Object),
+    );
+    expect(animate).toHaveBeenNthCalledWith(
+      7,
+      { color: 0x1e293bff },
+      expect.any(Object),
+    );
+  });
+
+  it('does not let old transition cleanup hide a reused controller', async () => {
+    let resolveStopped!: () => void;
+    let stopped = new Promise<void>((resolve) => {
+      resolveStopped = resolve;
+    });
+    const controller = {
+      state: 'running' as 'running' | 'stopped',
+      start: vi.fn(() => controller),
+      stop: vi.fn(() => {
+        controller.state = 'stopped' as const;
+        return controller;
+      }),
+      waitUntilStopped: vi.fn(() => stopped),
+    };
+    const animate = vi.fn(() => controller);
+    const node = renderedNode();
+    node.lng = { color: 0x1e293bff, animate } as any;
+    node.transition = { color: true };
+    node.style = {
+      $focus: {
+        color: '#38bdf8ff',
+      },
+    };
+
+    node.states.add('$focus');
+    resolveStopped();
+    stopped = new Promise<void>(() => {});
+    node.states.remove('$focus');
+    await Promise.resolve();
+    node.states.add('$focus');
+    node.states.remove('$focus');
+
+    expect(controller.stop).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not clear a transition while a reused controller is still running', async () => {
+    const controller = {
+      state: 'running' as 'running' | 'stopped',
+      start: vi.fn(() => controller),
+      stop: vi.fn(() => {
+        controller.state = 'stopped' as const;
+        return controller;
+      }),
+      waitUntilStopped: vi.fn(() => Promise.resolve()),
+    };
+    const animate = vi.fn(() => controller);
+    const node = renderedNode();
+    node.lng = { color: 0x1e293bff, animate } as any;
+    node.transition = { color: true };
+
+    node.color = '#38bdf8ff';
+    await Promise.resolve();
+    node.color = '#1e293bff';
+
+    expect(controller.stop).toHaveBeenCalledTimes(1);
+  });
+});
