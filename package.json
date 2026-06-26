@@ -1,6 +1,6 @@
 {
   "name": "svelte-tv",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Svelte speed for every screen 🚀✨",
   "type": "module",
   "exports": {
