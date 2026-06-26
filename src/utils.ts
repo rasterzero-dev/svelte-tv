@@ -8,7 +8,8 @@ const WEBGL_CONTEXT_IDS = [
   'experimental-webgl2',
   'experimental-webgl',
 ];
-let supportedWebglVersions: string[] | undefined;
+
+const supportedWebglVersions = new Map<string, string[]>();
 
 export function hexColor(color: string | number = ''): number {
   if (isInteger(color)) {
@@ -59,14 +60,21 @@ export function mod(n: number, m: number): number {
 export function getWebglSupportedVersions(
   webglContextIds: string[] = WEBGL_CONTEXT_IDS,
 ): string[] {
-  if (supportedWebglVersions && webglContextIds === WEBGL_CONTEXT_IDS) {
-    return supportedWebglVersions;
+  const cacheKey = webglContextIds.join('|');
+  const cached = supportedWebglVersions.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
   }
 
   const cv = document.createElement('canvas');
+
+  let probeContext: RenderingContext | null = null;
   const supports = webglContextIds.filter((id) => {
     try {
       const context = cv.getContext(id);
+      if (context !== null && probeContext === null) {
+        probeContext = context;
+      }
       return !!(
         context &&
         (context instanceof WebGLRenderingContext ||
@@ -79,9 +87,18 @@ export function getWebglSupportedVersions(
     }
   });
 
-  if (webglContextIds === WEBGL_CONTEXT_IDS) {
-    supportedWebglVersions = supports;
+  const probe = probeContext as RenderingContext | null;
+  if (
+    probe !== null &&
+    'getExtension' in probe &&
+    (probe as WebGLRenderingContext).isContextLost() === false
+  ) {
+    (probe as WebGLRenderingContext)
+      .getExtension('WEBGL_lose_context')
+      ?.loseContext();
   }
+
+  supportedWebglVersions.set(cacheKey, supports);
 
   return supports;
 }
