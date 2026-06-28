@@ -1,5 +1,8 @@
 import * as lng from '@lightningjs/renderer';
-import { CanvasRenderer, CanvasTextRenderer } from '@lightningjs/renderer/canvas';
+import {
+  CanvasRenderer,
+  CanvasTextRenderer,
+} from '@lightningjs/renderer/canvas';
 import { FontLoadOptions } from './intrinsicTypes.js';
 import { registerDefaultShaders } from './shaders.js';
 

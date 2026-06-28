@@ -134,7 +134,19 @@
   });
 
   const nodeProps = $derived.by(() => {
-    const { children, items, itemHeight, itemWidth, itemOffset, columns, looping, scroll, selected, onSelectedChanged, ...rest } = props;
+    const {
+      children,
+      items,
+      itemHeight,
+      itemWidth,
+      itemOffset,
+      columns,
+      looping,
+      scroll,
+      selected,
+      onSelectedChanged,
+      ...rest
+    } = props;
     return rest;
   });
 </script>
@@ -152,7 +164,7 @@
   onFocus={chainFunctions(props.onFocus, onFocus)}
   strictBounds={false}
   y={props.scroll === 'none'
-    ? props.y ?? 0
+    ? (props.y ?? 0)
     : -Math.floor(focusedIndex / columns()) * totalHeight() + (props.y || 0)}
 >
   {#each props.items as item, index}

@@ -25,10 +25,7 @@ describe('router', () => {
 
   it('matches nested routes with params', () => {
     const routes = [
-      route('', [
-        route('browse/:filter'),
-        route('entity/:type/:id'),
-      ]),
+      route('', [route('browse/:filter'), route('entity/:type/:id')]),
     ];
 
     const match = matchRoutes(routes, '/entity/movie/42');
@@ -41,12 +38,7 @@ describe('router', () => {
   });
 
   it('prefers static routes over params', () => {
-    const routes = [
-      route('', [
-        route('browse/:filter'),
-        route('browse/all'),
-      ]),
-    ];
+    const routes = [route('', [route('browse/:filter'), route('browse/all')])];
 
     const match = matchRoutes(routes, '/browse/all');
 

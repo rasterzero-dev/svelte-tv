@@ -113,7 +113,10 @@ function toValidVec4(value: unknown): Vec4 {
 
 export function registerDefaultShaderRounded(shManager: CoreShaderManager) {
   if (SHADERS_ENABLED && !isDomRendererActive())
-    shManager.registerShaderType('rounded', getDefaultShaders(shManager).Rounded);
+    shManager.registerShaderType(
+      'rounded',
+      getDefaultShaders(shManager).Rounded,
+    );
 }
 export function registerDefaultShaderShadow(shManager: CoreShaderManager) {
   if (SHADERS_ENABLED && !isDomRendererActive())
@@ -148,7 +151,10 @@ export function registerDefaultShaderRoundedWithBorderAndShadow(
 }
 export function registerDefaultShaderHolePunch(shManager: CoreShaderManager) {
   if (SHADERS_ENABLED && !isDomRendererActive())
-    shManager.registerShaderType('holePunch', getDefaultShaders(shManager).HolePunch);
+    shManager.registerShaderType(
+      'holePunch',
+      getDefaultShaders(shManager).HolePunch,
+    );
 }
 export function registerDefaultShaderRadialGradient(
   shManager: CoreShaderManager,

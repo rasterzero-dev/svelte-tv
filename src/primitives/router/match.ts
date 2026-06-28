@@ -66,10 +66,7 @@ function matchChildren(
     if (!result) continue;
 
     const fullPath = joinPaths(basePath, route.path);
-    const nextChain = [
-      ...chain,
-      { route, params: result.params, fullPath },
-    ];
+    const nextChain = [...chain, { route, params: result.params, fullPath }];
     const nextIndex = result.index;
     const score = result.score;
 

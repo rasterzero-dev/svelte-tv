@@ -2,6 +2,7 @@
   import {
     Button,
     Column,
+    Icon,
     Row,
     Text,
     View,
@@ -70,6 +71,7 @@
         style={{ $focus: { color: '#f59e0bff', scale: 1.04 } }}
         onEnter={increment}
       >
+        <Icon icon="material-symbols:flashlight-on" color="red" h={24} w={24} />
         <Text text={`Count ${count}`} fontSize={26} color="#ffffffff" />
       </Button>
     </Row>

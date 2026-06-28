@@ -93,6 +93,11 @@
 <View {...nodeProps} clipping={props.marquee}>
   <Text {...textNodeProps} bind:this={textNode} text={props.text} />
   {#if props.marquee}
-    <Text {...textNodeProps} bind:this={repeatNode} x={repeatX} text={props.text} />
+    <Text
+      {...textNodeProps}
+      bind:this={repeatNode}
+      x={repeatX}
+      text={props.text}
+    />
   {/if}
 </View>

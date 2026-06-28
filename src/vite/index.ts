@@ -174,9 +174,8 @@ export function svelteTvFonts(options: SvelteTvFontsOptions = {}): Plugin {
       return;
     }
 
-    const { genFont, setGeneratePaths } = await import(
-      '@lightningjs/msdf-generator'
-    );
+    const { genFont, setGeneratePaths } =
+      await import('@lightningjs/msdf-generator');
 
     const fonts = [];
     for (const fileName of fontFiles) {

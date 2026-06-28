@@ -5,6 +5,7 @@ export { default as Drawer } from './Drawer.svelte';
 export { default as FadeInOut } from './FadeInOut.svelte';
 export { default as FPSCounter } from './FPSCounter.svelte';
 export { default as Grid } from './Grid.svelte';
+export { default as Icon } from './Icon.svelte';
 export { default as IconButton } from './IconButton.svelte';
 export { default as Image } from './Image.svelte';
 export { default as Marquee } from './Marquee.svelte';

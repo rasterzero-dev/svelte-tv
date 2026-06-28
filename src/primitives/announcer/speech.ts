@@ -30,19 +30,28 @@ function flattenStrings(series: SpeechType[] = []): SpeechType[] {
   return [flattened.join(',\b '), ...series.slice(i)];
 }
 
-function speak(phrase: string, utterances: SpeechSynthesisUtterance[], lang: string) {
+function speak(
+  phrase: string,
+  utterances: SpeechSynthesisUtterance[],
+  lang: string,
+) {
   const synth = window.speechSynthesis;
   return new Promise<void>((resolve, reject) => {
     const utterance = new SpeechSynthesisUtterance(phrase);
     utterance.lang = lang;
     utterance.onend = () => resolve();
-    utterance.onerror = (e) => reject(new Error(`Speech synthesis error: ${e.error}`));
+    utterance.onerror = (e) =>
+      reject(new Error(`Speech synthesis error: ${e.error}`));
     utterances.push(utterance);
     synth.speak(utterance);
   });
 }
 
-function speakSeries(series: SpeechType, aria: boolean, lang: string): SeriesResult {
+function speakSeries(
+  series: SpeechType,
+  aria: boolean,
+  lang: string,
+): SeriesResult {
   const synth = window.speechSynthesis;
   const remaining = flattenStrings(Array.isArray(series) ? series : [series]);
   const nested: SeriesResult[] = [];

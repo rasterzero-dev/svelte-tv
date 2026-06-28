@@ -15,4 +15,3 @@ export async function loadGeneratedFonts(
 
   return loadFonts(fonts);
 }
-

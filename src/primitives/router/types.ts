@@ -20,7 +20,9 @@ export type RoutePreloadArgs = {
   navigate: NavigateFn;
 };
 
-export type RoutePreload = (args: RoutePreloadArgs) => unknown | Promise<unknown>;
+export type RoutePreload = (
+  args: RoutePreloadArgs,
+) => unknown | Promise<unknown>;
 
 export type RouteComponentProps = {
   params: RouteParams;

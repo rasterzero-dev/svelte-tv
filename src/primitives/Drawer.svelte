@@ -126,9 +126,7 @@
     onStopped?: () => void,
   ) {
     (
-      animationController as
-        | { stop: (reset?: boolean) => void }
-        | undefined
+      animationController as { stop: (reset?: boolean) => void } | undefined
     )?.stop(false);
     animationController = target
       .animate(to, { duration, easing: props.easing ?? 'ease-in-out' })

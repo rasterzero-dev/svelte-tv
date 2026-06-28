@@ -20,7 +20,9 @@
   }
 
   let props: Props = $props();
-  let grid: (LightningComponent & { scrollToIndex?: (index: number) => void }) | undefined;
+  let grid:
+    | (LightningComponent & { scrollToIndex?: (index: number) => void })
+    | undefined;
 
   const items = $derived(props.each || []);
   const rows = $derived(props.rows ?? 1);

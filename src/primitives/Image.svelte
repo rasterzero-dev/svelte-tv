@@ -53,6 +53,11 @@
   });
 </script>
 
-<View {...nodeProps} src={currentSrc} color={props.color || 0xffffffff} {texture}>
+<View
+  {...nodeProps}
+  src={currentSrc}
+  color={props.color || 0xffffffff}
+  {texture}
+>
   {@render props.children?.()}
 </View>

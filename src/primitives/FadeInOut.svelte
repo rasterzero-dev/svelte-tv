@@ -30,25 +30,25 @@
   }
 
   function onDestroy(elm: ElementNode) {
-    (
-      fadeController as { stop: (reset?: boolean) => void } | undefined
-    )?.stop(false);
+    (fadeController as { stop: (reset?: boolean) => void } | undefined)?.stop(
+      false,
+    );
     if (typeof props.onDestroy === 'function') {
       return props.onDestroy.call(elm, elm);
     }
   }
 
   function fadeIn(elm: ElementNode) {
-    (
-      fadeController as { stop: (reset?: boolean) => void } | undefined
-    )?.stop(false);
+    (fadeController as { stop: (reset?: boolean) => void } | undefined)?.stop(
+      false,
+    );
     fadeController = elm.animate({ alpha: 1 }, { duration, easing }).start();
   }
 
   function fadeOut(elm: ElementNode, token: number) {
-    (
-      fadeController as { stop: (reset?: boolean) => void } | undefined
-    )?.stop(false);
+    (fadeController as { stop: (reset?: boolean) => void } | undefined)?.stop(
+      false,
+    );
     fadeController = elm.animate({ alpha: 0 }, { duration, easing }).start();
     fadeController.waitUntilStopped().then(() => {
       if (token === exitToken && props.when === false) {

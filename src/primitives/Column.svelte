@@ -1,6 +1,10 @@
 <script lang="ts">
   import View from '../View.svelte';
-  import { combineStyles, type ElementNode, type NodeStyles } from '../index.js';
+  import {
+    combineStyles,
+    type ElementNode,
+    type NodeStyles,
+  } from '../index.js';
   import type { ColumnProps } from './types.js';
   import { chainFunctions } from './utils/chainFunctions.js';
   import {

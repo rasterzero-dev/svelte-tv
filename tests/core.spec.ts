@@ -109,7 +109,8 @@ describe('core', () => {
       }),
       waitUntilStopped: vi.fn(() => new Promise<void>(() => {})),
     };
-    const animate = vi.fn()
+    const animate = vi
+      .fn()
       .mockReturnValueOnce(first)
       .mockReturnValueOnce(second);
     const node = renderedNode();
@@ -158,10 +159,7 @@ describe('core', () => {
     node.states.add('$focus');
     node.states.remove('$focus');
 
-    expect(animate).toHaveBeenLastCalledWith(
-      { scale: 1 },
-      expect.any(Object),
-    );
+    expect(animate).toHaveBeenLastCalledWith({ scale: 1 }, expect.any(Object));
     expect(animate).toHaveBeenNthCalledWith(
       7,
       { color: 0x1e293bff },

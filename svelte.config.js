@@ -4,7 +4,7 @@ export default {
   preprocess: vitePreprocess({ script: true }),
   kit: {
     files: {
-      lib: 'src'
-    }
-  }
+      lib: 'src',
+    },
+  },
 };

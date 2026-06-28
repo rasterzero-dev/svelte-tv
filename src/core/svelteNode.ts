@@ -1,9 +1,6 @@
 import type { Snippet } from 'svelte';
 import { getContext, setContext } from 'svelte';
-import {
-  ElementNode,
-  enqueueDelete,
-} from './elementNode.js';
+import { ElementNode, enqueueDelete } from './elementNode.js';
 import type { ElementText, NodeProps, TextProps } from './intrinsicTypes.js';
 import { TextNode } from './nodeTypes.js';
 import { isElementText } from './utils.js';
