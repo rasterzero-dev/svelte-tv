@@ -5,14 +5,27 @@ import {
   ElementNode,
   focusPath,
   hasFocus,
+  mountNode,
   setActiveElementCore,
 } from '../src/core/index.js';
 import { navigableForwardFocus } from '../src/primitives/utils/handleNavigation.js';
+
+interface TestEffect {
+  parent: TestEffect | null;
+  prev: TestEffect | null;
+}
 
 function renderedNode() {
   const node = new ElementNode('view');
   node.rendered = true;
   return node;
+}
+
+function effect(
+  parent: TestEffect | null = null,
+  prev: TestEffect | null = null,
+) {
+  return { parent, prev };
 }
 
 describe('core', () => {
@@ -47,6 +60,36 @@ describe('core', () => {
     await Promise.resolve();
 
     expect(activeElement()).toBe(second);
+  });
+
+  it('inserts a later-mounted conditional child before the next sibling', () => {
+    const parent = new ElementNode('view');
+    const ifBlock = effect();
+    const textEffect = effect(null, ifBlock);
+    const branch = effect(ifBlock);
+    const iconEffect = effect(branch);
+    const text = new ElementNode('text');
+    const icon = new ElementNode('view');
+
+    mountNode(text, parent, textEffect);
+    mountNode(icon, parent, iconEffect);
+
+    expect(parent.children).toEqual([icon, text]);
+  });
+
+  it('appends a later-mounted conditional child after previous siblings', () => {
+    const parent = new ElementNode('view');
+    const firstEffect = effect();
+    const ifBlock = effect(null, firstEffect);
+    const branch = effect(ifBlock);
+    const iconEffect = effect(branch);
+    const first = new ElementNode('text');
+    const icon = new ElementNode('view');
+
+    mountNode(first, parent, firstEffect);
+    mountNode(icon, parent, iconEffect);
+
+    expect(parent.children).toEqual([first, icon]);
   });
 
   it('restores prop values when state styles are removed', () => {

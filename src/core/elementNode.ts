@@ -502,6 +502,7 @@ export interface ElementNode extends RendererNode, FocusNode {
   _transitionAnimations?: Record<string, IAnimationController | undefined>;
   _transitionAnimationVersions?: Record<string, number | undefined>;
   _lastAnyKeyPressTime?: number;
+  _svelteEffect?: unknown;
   _type: 'element' | 'textNode';
   _undoStyles?: string[];
   _display?: 'flex' | 'block';
@@ -980,6 +981,7 @@ export class ElementNode {
     this._transitionAnimations = undefined;
     this._transitionAnimationVersions = undefined;
     this._lastAnyKeyPressTime = undefined;
+    this._svelteEffect = undefined;
     this._undoStyles = undefined;
     this._display = undefined;
     this._onLayout = undefined;

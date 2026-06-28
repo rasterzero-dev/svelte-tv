@@ -1,11 +1,17 @@
 import type { Snippet } from 'svelte';
 import { getContext, setContext } from 'svelte';
+import { active_effect } from 'svelte/internal/client';
 import { ElementNode, enqueueDelete } from './elementNode.js';
 import type { ElementText, NodeProps, TextProps } from './intrinsicTypes.js';
 import { TextNode } from './nodeTypes.js';
 import { isElementText } from './utils.js';
 
 const nodeContext = Symbol('svelte-tv-node');
+
+interface SvelteEffect {
+  parent: SvelteEffect | null;
+  prev: SvelteEffect | null;
+}
 
 export interface SvelteNodeProps extends NodeProps {
   children?: Snippet;
@@ -35,9 +41,14 @@ export function createNode(name: 'view' | 'text', props: Record<string, any>) {
   return node;
 }
 
-export function mountNode(node: ElementNode, parent: ElementNode | undefined) {
+export function mountNode(
+  node: ElementNode,
+  parent: ElementNode | undefined,
+  effect: unknown = active_effect,
+) {
   if (!parent) return;
-  parent.insertChild(node);
+  node._svelteEffect = effect;
+  parent.insertChild(node, findNextSibling(node, parent));
   if (parent.rendered) {
     node.render(true);
   }
@@ -78,6 +89,68 @@ export function applyNodeProps(node: ElementNode, props: Record<string, any>) {
     node._stateChanged();
   }
   node.rerender();
+}
+
+function findNextSibling(node: ElementNode, parent: ElementNode) {
+  const effect = node._svelteEffect;
+  if (!isSvelteEffect(effect)) return undefined;
+
+  for (const child of parent.children) {
+    if (
+      isSvelteEffect(child._svelteEffect) &&
+      isEffectBefore(effect, child._svelteEffect)
+    ) {
+      return child;
+    }
+  }
+}
+
+function isEffectBefore(a: SvelteEffect, b: SvelteEffect) {
+  if (a === b) return false;
+
+  const aPath = effectPath(a);
+  const bPath = effectPath(b);
+  let index = 0;
+
+  while (aPath[index] && aPath[index] === bPath[index]) {
+    index++;
+  }
+
+  const aChild = aPath[index];
+  const bChild = bPath[index];
+  if (!aChild || !bChild) return false;
+
+  let sibling = bChild.prev;
+  while (sibling) {
+    if (sibling === aChild) return true;
+    sibling = sibling.prev;
+  }
+
+  return false;
+}
+
+function effectPath(effect: SvelteEffect) {
+  const path: SvelteEffect[] = [];
+  let current: SvelteEffect | null = effect;
+
+  while (current) {
+    path.unshift(current);
+    current = current.parent;
+  }
+
+  return path;
+}
+
+function isSvelteEffect(value: unknown): value is SvelteEffect {
+  if (!value || typeof value !== 'object') return false;
+
+  const effect = value as SvelteEffect;
+  return (
+    'parent' in effect &&
+    (effect.parent === null || typeof effect.parent === 'object') &&
+    'prev' in effect &&
+    (effect.prev === null || typeof effect.prev === 'object')
+  );
 }
 
 export function setTextContent(node: ElementNode, text: string | undefined) {
