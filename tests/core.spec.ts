@@ -48,6 +48,23 @@ describe('core', () => {
     expect(hasFocus(parent)).toBe(true);
   });
 
+  it('does not refocus when autofocus is reapplied with the same value', async () => {
+    const initial = renderedNode();
+    const next = renderedNode();
+
+    applyNodeProps(initial, { autofocus: true });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(activeElement()).toBe(initial);
+
+    setActiveElementCore(next);
+    applyNodeProps(initial, { autofocus: true });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(activeElement()).toBe(next);
+  });
+
   it('forwards navigable focus to the selected child', async () => {
     const row = renderedNode();
     const first = renderedNode();

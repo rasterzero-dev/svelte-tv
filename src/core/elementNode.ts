@@ -1560,12 +1560,17 @@ export class ElementNode {
    *              A truthy value enables autofocus, otherwise disables it.
    */
   set autofocus(val: any) {
+    if (val === this._autofocus) {
+      return;
+    }
     this._autofocus = val;
     // Defer setFocus so children render first (forwardFocus needs them).
     // The post-mutation focus phase calls setFocus on this element.
     if (val) {
       deferredFocusElement = this;
       schedulePostMutation();
+    } else if (deferredFocusElement === this) {
+      deferredFocusElement = null;
     }
   }
 
