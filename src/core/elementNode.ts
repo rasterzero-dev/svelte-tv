@@ -188,6 +188,14 @@ function isShaderNode(value: unknown): value is IRendererShader {
   );
 }
 
+function isRoundedShaderNode(value: unknown) {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    (value as { shaderKey?: unknown }).shaderKey === 'rounded'
+  );
+}
+
 const EFFECT_SHADER_KEYS = [
   'border',
   'borderTop',
@@ -1980,6 +1988,20 @@ export class ElementNode {
 
       if (SHADERS_ENABLED && props.shader && !isShaderNode(props.shader)) {
         props.shader = Config.convertToShader(node, props.shader);
+      }
+      if (
+        props.clipping === true &&
+        isRoundedShaderNode(props.shader) &&
+        renderer.stage.renderer.mode === 'webgl'
+      ) {
+        props.rtt = true;
+        props.shader = renderer.createShader('roundedClip', {
+          radius: (
+            props.shader as {
+              props?: { radius?: unknown };
+            }
+          ).props?.radius,
+        });
       }
 
       if (isDev) log('Rendering: ', this, props);

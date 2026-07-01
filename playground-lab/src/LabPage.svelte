@@ -112,5 +112,12 @@
         color="#ffffffff"
       />
     </View>
+
+    <View w={720} h={160} color="#182230ff" borderRadius={8} padding={28}>
+      <Text text="Rounded clipping" fontSize={26} color="#f8fafcff" />
+      <View y={54} w={420} h={80} color="#111827ff" borderRadius={16} clipping>
+        <View y={75} w={420} h={5} color="#ffffffff" />
+      </View>
+    </View>
   </Column>
 </View>

@@ -63,6 +63,54 @@ export type ShaderHolePunch = CanvasShader<ShaderHolePunchProps>;
 export type ShaderRadialGradient = CanvasShader<ShaderRadialGradientProps>;
 export type ShaderLinearGradient = CanvasShader<ShaderLinearGradientProps>;
 
+const RoundedClip: WebGlShader<ShaderRoundedProps> = {
+  props: webglShaders.Rounded.props,
+  update(node: lngr.CoreNode) {
+    this.uniform4fa(
+      'u_radius',
+      calcFactoredRadiusArray(this.props!.radius as Vec4, node.w, node.h),
+    );
+  },
+  vertex: webglShaders.Rounded.vertex,
+  fragment: `
+    # ifdef GL_FRAGMENT_PRECISION_HIGH
+    precision highp float;
+    # else
+    precision mediump float;
+    # endif
+
+    uniform vec2 u_dimensions;
+    uniform float u_alpha;
+    uniform float u_pixelRatio;
+    uniform sampler2D u_texture;
+
+    uniform vec4 u_radius;
+
+    varying vec4 v_color;
+    varying vec2 v_textureCoords;
+    varying vec2 v_nodeCoords;
+
+    float roundedBox(vec2 p, vec2 s, vec4 r) {
+      r.xy = (p.x > 0.0) ? r.yz : r.xw;
+      r.x = (p.y > 0.0) ? r.y : r.x;
+      vec2 q = abs(p) - s + r.x;
+      return (min(max(q.x, q.y), 0.0) + length(max(q, 0.0))) - r.x;
+    }
+
+    void main() {
+      vec4 child = texture2D(u_texture, v_textureCoords);
+      vec2 halfDimensions = (u_dimensions * 0.5);
+      vec2 boxUv = v_nodeCoords.xy * u_dimensions - halfDimensions;
+      float boxDist = roundedBox(boxUv, halfDimensions, u_radius);
+      float edgeWidth = 1.0 / u_pixelRatio;
+      float roundedAlpha = 1.0 - smoothstep(-0.5 * edgeWidth, 0.5 * edgeWidth, boxDist);
+      vec4 clippedChild = child * roundedAlpha;
+      vec4 background = v_color * roundedAlpha;
+      gl_FragColor = (clippedChild + background * (1.0 - clippedChild.a)) * u_alpha;
+    }
+  `,
+};
+
 function getDefaultShaders(shManager: CoreShaderManager) {
   const mode = shManager.stage?.renderer.mode;
   return mode === 'webgl' ? webglShaders : canvasShaders;
@@ -117,6 +165,14 @@ export function registerDefaultShaderRounded(shManager: CoreShaderManager) {
       'rounded',
       getDefaultShaders(shManager).Rounded,
     );
+}
+export function registerDefaultShaderRoundedClip(shManager: CoreShaderManager) {
+  if (
+    SHADERS_ENABLED &&
+    !isDomRendererActive() &&
+    shManager.stage?.renderer.mode === 'webgl'
+  )
+    shManager.registerShaderType('roundedClip', RoundedClip);
 }
 export function registerDefaultShaderShadow(shManager: CoreShaderManager) {
   if (SHADERS_ENABLED && !isDomRendererActive())
@@ -178,6 +234,7 @@ export function registerDefaultShaderLinearGradient(
 export function registerDefaultShaders(shManager: CoreShaderManager) {
   if (SHADERS_ENABLED && !isDomRendererActive()) {
     registerDefaultShaderRounded(shManager);
+    registerDefaultShaderRoundedClip(shManager);
     registerDefaultShaderShadow(shManager);
     registerDefaultShaderRoundedWithBorder(shManager);
     registerDefaultShaderRoundedWithShadow(shManager);
