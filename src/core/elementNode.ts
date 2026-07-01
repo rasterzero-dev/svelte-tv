@@ -196,6 +196,44 @@ function isRoundedShaderNode(value: unknown) {
   );
 }
 
+function hasTextureChild(node: ElementNode) {
+  return node.children.some(
+    (child) => isElementNode(child) && !!(child.lng.src || child.lng.texture),
+  );
+}
+
+function shouldUseRoundedChildClipping(node: ElementNode) {
+  return (
+    node.clipping === true &&
+    isRoundedShaderNode(node.lng.shader) &&
+    node.color !== 0x00000000 &&
+    hasTextureChild(node)
+  );
+}
+
+function findRoundedChildClipAncestor(node: ElementNode) {
+  let ancestor = node.parent;
+
+  while (ancestor) {
+    if (shouldUseRoundedChildClipping(ancestor)) return ancestor;
+    ancestor = ancestor.parent;
+  }
+}
+
+function getOffsetFromAncestor(node: ElementNode, ancestor: ElementNode) {
+  let x = 0;
+  let y = 0;
+  let current: ElementNode | undefined = node;
+
+  while (current && current !== ancestor) {
+    x += (current.lng.x as number | undefined) ?? 0;
+    y += (current.lng.y as number | undefined) ?? 0;
+    current = current.parent;
+  }
+
+  return { x, y };
+}
+
 const EFFECT_SHADER_KEYS = [
   'border',
   'borderTop',
@@ -1989,10 +2027,32 @@ export class ElementNode {
       if (SHADERS_ENABLED && props.shader && !isShaderNode(props.shader)) {
         props.shader = Config.convertToShader(node, props.shader);
       }
+      const roundedClipAncestor = findRoundedChildClipAncestor(node);
+      if (
+        roundedClipAncestor &&
+        (!props.shader || isRoundedShaderNode(props.shader)) &&
+        renderer.stage.renderer.mode === 'webgl'
+      ) {
+        const offset = getOffsetFromAncestor(node, roundedClipAncestor);
+        props.shader = renderer.createShader('roundedChildClip', {
+          radius: (
+            roundedClipAncestor.lng.shader as {
+              props?: { radius?: unknown };
+            }
+          ).props?.radius,
+          clipX: offset.x,
+          clipY: offset.y,
+          clipW: roundedClipAncestor.w,
+          clipH: roundedClipAncestor.h,
+        });
+      }
       if (
         props.clipping === true &&
         isRoundedShaderNode(props.shader) &&
-        renderer.stage.renderer.mode === 'webgl'
+        renderer.stage.renderer.mode === 'webgl' &&
+        node.children.length > 0 &&
+        props.color !== 0x00000000 &&
+        !hasTextureChild(node)
       ) {
         props.rtt = true;
         props.shader = renderer.createShader('roundedClip', {
