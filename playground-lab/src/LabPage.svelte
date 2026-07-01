@@ -6,12 +6,22 @@
     Row,
     Text,
     View,
+    createFontMetrics,
+    measureFontText,
     navigate,
     type RouteComponentProps,
   } from '../../src/index.js';
+  import { generatedFonts } from 'virtual:svelte-tv/generated-fonts';
 
   let props: RouteComponentProps = $props();
   let count = $state(0);
+  const measuredText = 'AVATAR WAVY TEXT';
+  const measuredFontSize = 32;
+  const measuredMetrics = createFontMetrics(
+    generatedFonts['Roboto-Regular']!,
+    measuredFontSize,
+  );
+  const measuredWidth = measureFontText(measuredText, measuredMetrics);
 
   function go(path: string) {
     navigate(path);
@@ -84,6 +94,22 @@
         text="playground-lab/src/LabPage.svelte"
         fontSize={24}
         color="#93c5fdff"
+      />
+    </View>
+
+    <View w={720} h={140} color="#182230ff" borderRadius={8} padding={28}>
+      <View w={measuredWidth} clipping>
+        <Text
+          text={measuredText}
+          fontSize={measuredFontSize}
+          color="#ffffffff"
+        />
+      </View>
+      <Text
+        y={52}
+        text={measuredText}
+        fontSize={measuredFontSize}
+        color="#ffffffff"
       />
     </View>
   </Column>

@@ -1,6 +1,6 @@
 {
   "name": "svelte-tv",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Svelte speed for every screen 🚀✨",
   "type": "module",
   "exports": {
@@ -21,6 +21,10 @@
     "./fonts": {
       "types": "./dist/fonts.d.ts",
       "import": "./dist/fonts.js"
+    },
+    "./generated-fonts": {
+      "types": "./dist/generated-fonts.d.ts",
+      "import": "./dist/generated-fonts.js"
     },
     "./vite": {
       "types": "./dist/vite/index.d.ts",
@@ -48,7 +52,7 @@
     "lint:fix": "prettier --write \"**/*.{svelte,ts,js,json,md}\"",
     "test": "vitest",
     "build:playground": "vite build playground --config ./vite.config.ts",
-    "build:playground:lab": "vite build playground-lab --config ./playground-lab/vite.config.ts",
+    "build:lab": "vite build playground-lab --config ./playground-lab/vite.config.ts",
     "preview": "vite preview playground --config ./vite.config.ts --host 0.0.0.0 --port 4173 --strictPort",
     "preview:lab": "vite preview playground-lab --config ./playground-lab/vite.config.ts --host 0.0.0.0 --port 4175 --strictPort",
     "dev": "vite dev playground --config ./vite.config.ts --host 0.0.0.0 --port 5173",

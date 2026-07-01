@@ -1,6 +1,7 @@
 import type { Plugin } from 'vite';
 import { existsSync, promises as fs } from 'node:fs';
 import path from 'node:path';
+import type { GeneratedFontData, GeneratedFonts } from '../fonts.js';
 
 type SdfFieldType = 'msdf' | 'ssdf';
 
@@ -26,6 +27,13 @@ type FontCharset = {
 
 type FontCharsetMap = Record<string, FontCharset>;
 
+type GeneratedFontManifestEntry = {
+  type: SdfFieldType;
+  fontFamily: string;
+  atlasUrl: string;
+  atlasDataUrl: string;
+};
+
 export interface SvelteTvFontsOptions {
   input?: string;
   output?: string;
@@ -37,6 +45,9 @@ export interface SvelteTvFontsOptions {
 }
 
 const FONT_EXTENSIONS = new Set(['.ttf', '.otf', '.woff', '.woff2']);
+const GENERATED_FONTS_MODULE_ID = 'svelte-tv/generated-fonts';
+const VIRTUAL_GENERATED_FONTS_MODULE_ID = 'virtual:svelte-tv/generated-fonts';
+const RESOLVED_GENERATED_FONTS_MODULE_ID = `\0${GENERATED_FONTS_MODULE_ID}`;
 
 function normalizePublicPath(publicPath: string) {
   const normalized = publicPath.replaceAll('\\', '/').replace(/\/+$/, '');
@@ -107,6 +118,10 @@ async function readCache(cachePath: string) {
   return JSON.parse(await fs.readFile(cachePath, 'utf8')) as FontCache;
 }
 
+async function readFontData(filePath: string) {
+  return JSON.parse(await fs.readFile(filePath, 'utf8')) as GeneratedFontData;
+}
+
 async function outputExists(
   output: string,
   fontFiles: string[],
@@ -130,11 +145,40 @@ function cacheMatches(a: FontCache | undefined, b: FontCache) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+async function readGeneratedFonts(
+  output: string,
+  fontFiles: string[],
+  fieldType: SdfFieldType,
+  publicPath: string,
+) {
+  const generatedFonts: GeneratedFonts = {};
+  const generatedFontManifest: GeneratedFontManifestEntry[] = [];
+
+  for (const fontFile of fontFiles) {
+    const name = stripExtension(fontFile);
+    const jsonPath = path.join(output, `${name}.${fieldType}.json`);
+    const fontData = await readFontData(jsonPath);
+    const fontFamily = fontData.info.face ?? name;
+
+    generatedFonts[fontFamily] = fontData;
+    generatedFontManifest.push({
+      type: fieldType,
+      fontFamily,
+      atlasUrl: `${publicPath}/${name}.${fieldType}.png`,
+      atlasDataUrl: `${publicPath}/${name}.${fieldType}.json`,
+    });
+  }
+
+  return { generatedFonts, generatedFontManifest };
+}
+
 export function svelteTvFonts(options: SvelteTvFontsOptions = {}): Plugin {
   let root = '';
   let publicDir = '';
   let cacheDir = '';
   let generated = false;
+  let generatedFonts: GeneratedFonts = {};
+  let generatedFontManifest: GeneratedFontManifestEntry[] = [];
 
   async function generateFonts() {
     if (generated) return;
@@ -170,6 +214,12 @@ export function svelteTvFonts(options: SvelteTvFontsOptions = {}): Plugin {
       cacheMatches(await readCache(cachePath), cache) &&
       (await outputExists(output, fontFiles, fieldType, options.manifest))
     ) {
+      ({ generatedFonts, generatedFontManifest } = await readGeneratedFonts(
+        output,
+        fontFiles,
+        fieldType,
+        publicPath,
+      ));
       generated = true;
       return;
     }
@@ -216,6 +266,12 @@ export function svelteTvFonts(options: SvelteTvFontsOptions = {}): Plugin {
         `${JSON.stringify(manifest, null, 2)}\n`,
       );
     }
+    ({ generatedFonts, generatedFontManifest } = await readGeneratedFonts(
+      output,
+      fontFiles,
+      fieldType,
+      publicPath,
+    ));
     await fs.mkdir(cacheRoot, { recursive: true });
     await fs.writeFile(cachePath, `${JSON.stringify(cache, null, 2)}\n`);
     generated = true;
@@ -231,6 +287,24 @@ export function svelteTvFonts(options: SvelteTvFontsOptions = {}): Plugin {
     },
     async buildStart() {
       await generateFonts();
+    },
+    resolveId(id) {
+      if (
+        id === GENERATED_FONTS_MODULE_ID ||
+        id === VIRTUAL_GENERATED_FONTS_MODULE_ID
+      ) {
+        return RESOLVED_GENERATED_FONTS_MODULE_ID;
+      }
+    },
+    async load(id) {
+      if (id !== RESOLVED_GENERATED_FONTS_MODULE_ID) return;
+
+      await generateFonts();
+
+      return [
+        `export const generatedFonts = ${JSON.stringify(generatedFonts)};`,
+        `export const generatedFontManifest = ${JSON.stringify(generatedFontManifest)};`,
+      ].join('\n');
     },
   };
 }
