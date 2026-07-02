@@ -670,13 +670,13 @@ export interface ElementNode extends RendererNode, FocusNode {
    *
    * @see https://lightning-tv.github.io/solid/#/flow/layout?id=flex-properties
    */
-  alignItems?: 'flexStart' | 'flexEnd' | 'center';
+  alignItems?: 'flexStart' | 'flexEnd' | 'center' | 'stretch';
   /**
    * Aligns a flex item along the cross axis, overriding the `alignItems` value of the flex container.
    *
    * @see https://lightning-tv.github.io/solid/#/flow/layout?id=flex-properties
    */
-  alignSelf?: 'flexStart' | 'flexEnd' | 'center';
+  alignSelf?: 'flexStart' | 'flexEnd' | 'center' | 'stretch';
   /**
    * The border style for all sides of the element. Takes an object with width and color properties.
    *

@@ -150,6 +150,89 @@ describe('core', () => {
     expect(node.scale).toBe(1);
   });
 
+  it('stretches flex children across the cross axis', () => {
+    const column = new ElementNode('view');
+    const wide = new ElementNode('view');
+    const narrow = new ElementNode('view');
+
+    column.display = 'flex';
+    column.flexDirection = 'column';
+    column.alignItems = 'stretch';
+    column.width = 300;
+    column.height = 120;
+    wide.width = 180;
+    wide.height = 40;
+    narrow.width = 80;
+    narrow.height = 40;
+    column.insertChild(wide);
+    column.insertChild(narrow);
+
+    column.updateLayout();
+
+    expect(wide.width).toBe(300);
+    expect(narrow.width).toBe(300);
+  });
+
+  it('recalculates stretched flex children with their new cross size', () => {
+    const column = new ElementNode('view');
+    const button = new ElementNode('view');
+    const icon = new ElementNode('view');
+    const label = new ElementNode('view');
+
+    column.display = 'flex';
+    column.flexDirection = 'column';
+    column.alignItems = 'stretch';
+    column.width = 300;
+    column.height = 80;
+    button.display = 'flex';
+    button.justifyContent = 'center';
+    button.width = 220;
+    button.height = 40;
+    button._calcWidth = true;
+    button.paddingLeft = 32;
+    button.paddingRight = 32;
+    icon.width = 32;
+    icon.height = 32;
+    label.width = 100;
+    label.height = 32;
+    label.marginLeft = 8;
+    button.insertChild(icon);
+    button.insertChild(label);
+    column.insertChild(button);
+
+    button.updateLayout();
+    expect(button.width).toBe(204);
+    expect(icon.x).toBe(32);
+
+    column.updateLayout();
+
+    expect(button.width).toBe(300);
+    expect(icon.x).toBe(80);
+  });
+
+  it('lets alignSelf stretch override flex container alignment', () => {
+    const row = new ElementNode('view');
+    const centered = new ElementNode('view');
+    const stretched = new ElementNode('view');
+
+    row.display = 'flex';
+    row.alignItems = 'center';
+    row.width = 300;
+    row.height = 120;
+    centered.width = 80;
+    centered.height = 40;
+    stretched.width = 80;
+    stretched.height = 40;
+    stretched.alignSelf = 'stretch';
+    row.insertChild(centered);
+    row.insertChild(stretched);
+
+    row.updateLayout();
+
+    expect(centered.height).toBe(40);
+    expect(stretched.height).toBe(120);
+  });
+
   it('stops an in-flight transition before starting another for the same prop', () => {
     const first = {
       start: vi.fn(function () {

@@ -21,7 +21,10 @@ function getArrayValue(
   return result ?? defaultValue;
 }
 
-export default function (node: ElementNode): boolean {
+export default function calculateFlex(
+  node: ElementNode,
+  lockedDimension?: 'width' | 'height',
+): boolean {
   const direction = node.flexDirection || 'row';
   const isRow = direction === 'row' || direction === 'row-reverse';
   const isReverse =
@@ -253,6 +256,7 @@ export default function (node: ElementNode): boolean {
   const shouldUpdateMainSize = isRow ? node._calcWidth : node._calcHeight;
   if (
     shouldUpdateMainSize &&
+    dimension !== lockedDimension &&
     node.flexBoundary !== 'fixed' &&
     node.flexWrap !== 'wrap'
   ) {
@@ -295,11 +299,29 @@ export default function (node: ElementNode): boolean {
         innerCrossSize -
         childCrossSizes[idx]! -
         childMarginCrossEnds[idx]!;
+    } else if (alignSelf === 'stretch') {
+      const currentCrossSize = childCrossSizes[idx]!;
+      const stretchedCrossSize = Math.max(
+        0,
+        innerCrossSize -
+          childMarginCrossStarts[idx]! -
+          childMarginCrossEnds[idx]!,
+      );
+      c[crossDimension] = stretchedCrossSize;
+      childCrossSizes[idx] = stretchedCrossSize;
+      c[crossProp] = crossCurrentPos + childMarginCrossStarts[idx]!;
+      if (stretchedCrossSize !== currentCrossSize && c.display === 'flex') {
+        calculateFlex(c, crossDimension);
+      }
     }
   };
 
   const shouldUpdateCrossSize = isRow ? node._calcHeight : node._calcWidth;
-  if (shouldUpdateCrossSize && !node.flexCrossBoundary) {
+  if (
+    shouldUpdateCrossSize &&
+    crossDimension !== lockedDimension &&
+    !node.flexCrossBoundary
+  ) {
     let maxCrossSize = 0;
     for (let idx = 0; idx < numProcessedChildren; idx++) {
       if (childCrossSizes[idx]! > maxCrossSize) {
@@ -360,7 +382,11 @@ export default function (node: ElementNode): boolean {
     }
 
     // Update container size
-    if (node.flexBoundary !== 'fixed' && node.flexWrap !== 'wrap') {
+    if (
+      node.flexBoundary !== 'fixed' &&
+      node.flexWrap !== 'wrap' &&
+      dimension !== lockedDimension
+    ) {
       let calculatedSize = currentPos - gap + paddingEnd;
       const minSize = node[minDimension] || 0;
       if (calculatedSize < minSize) {

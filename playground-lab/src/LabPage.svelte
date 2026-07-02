@@ -97,6 +97,35 @@
       />
     </View>
 
+    <View w={900} h={250} color="#182230ff" borderRadius={8} padding={28}>
+      <Text text="alignItems stretch" fontSize={26} color="#f8fafcff" />
+      <Column y={58} gap={14} alignItems="stretch">
+        <Button
+          autofocus
+          padding={18}
+          color="#243044ff"
+          borderRadius={8}
+          transition={{ color: true, scale: true }}
+          style={{ $focus: { color: '#2563ebff', scale: 1.03 } }}
+        >
+          <Text
+            text="a veeeeeeeeeeeeeeeeery long text"
+            fontSize={26}
+            color="#ffffffff"
+          />
+        </Button>
+        <Button
+          padding={18}
+          color="#243044ff"
+          borderRadius={8}
+          transition={{ color: true, scale: true }}
+          style={{ $focus: { color: '#16a34aff', scale: 1.03 } }}
+        >
+          <Text text="short" fontSize={26} color="#ffffffff" />
+        </Button>
+      </Column>
+    </View>
+
     <View w={720} h={140} color="#182230ff" borderRadius={8} padding={28}>
       <View w={measuredWidth} clipping>
         <Text
