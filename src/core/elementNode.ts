@@ -184,7 +184,7 @@ function isShaderNode(value: unknown): value is IRendererShader {
   return (
     !!value &&
     typeof value === 'object' &&
-    ('program' in value || 'render' in value)
+    'shaderType' in value
   );
 }
 
