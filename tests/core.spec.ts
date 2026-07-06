@@ -233,6 +233,56 @@ describe('core', () => {
     expect(stretched.height).toBe(120);
   });
 
+  it('updates rounded child clipping after flex layout resolves parent size', () => {
+    const card = new ElementNode('view');
+    const image = new ElementNode('view');
+    const body = new ElementNode('view');
+    const childClipShader = {
+      shaderKey: 'roundedChildClip',
+      value: {},
+      set props(value) {
+        this.value = value;
+      },
+      get props() {
+        return this.value;
+      },
+    };
+
+    card.display = 'flex';
+    card.flexDirection = 'column';
+    card.clipping = true;
+    card.color = '#ffffff15';
+    card.lng.shader = {
+      shaderKey: 'rounded',
+      props: { radius: 16 },
+    } as any;
+    card._calcWidth = true;
+    card._calcHeight = true;
+
+    image.rendered = true;
+    image.lng = {
+      src: 'avatar.png',
+      shader: childClipShader,
+    } as any;
+    image.width = 192;
+    image.height = 192;
+
+    body.width = 192;
+    body.height = 48;
+
+    card.insertChild(image);
+    card.insertChild(body);
+    card.updateLayout();
+
+    expect(childClipShader.props).toEqual({
+      radius: 16,
+      clipX: 0,
+      clipY: 0,
+      clipW: 192,
+      clipH: 240,
+    });
+  });
+
   it('stops an in-flight transition before starting another for the same prop', () => {
     const first = {
       start: vi.fn(function () {

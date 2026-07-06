@@ -196,6 +196,14 @@ function isRoundedShaderNode(value: unknown) {
   );
 }
 
+function isRoundedChildClipShaderNode(value: unknown) {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    (value as { shaderKey?: unknown }).shaderKey === 'roundedChildClip'
+  );
+}
+
 function hasTextureChild(node: ElementNode) {
   return node.children.some(
     (child) => isElementNode(child) && !!(child.lng.src || child.lng.texture),
@@ -232,6 +240,27 @@ function getOffsetFromAncestor(node: ElementNode, ancestor: ElementNode) {
   }
 
   return { x, y };
+}
+
+function updateRoundedChildClipDescendants(ancestor: ElementNode) {
+  const shader = ancestor.lng.shader as { props?: { radius?: unknown } };
+
+  for (const child of ancestor.children) {
+    if (!isElementNode(child)) continue;
+
+    if (child.rendered && isRoundedChildClipShaderNode(child.lng.shader)) {
+      const offset = getOffsetFromAncestor(child, ancestor);
+      child.lng.shader.props = {
+        radius: shader.props?.radius,
+        clipX: offset.x,
+        clipY: offset.y,
+        clipW: ancestor.w,
+        clipH: ancestor.h,
+      };
+    }
+
+    updateRoundedChildClipDescendants(child);
+  }
 }
 
 const EFFECT_SHADER_KEYS = [
@@ -1696,6 +1725,10 @@ export class ElementNode {
             addToLayoutQueue(this);
           }
         });
+      }
+
+      if (shouldUseRoundedChildClipping(this)) {
+        updateRoundedChildClipDescendants(this);
       }
     }
   }
