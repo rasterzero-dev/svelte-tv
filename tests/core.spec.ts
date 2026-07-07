@@ -276,10 +276,65 @@ describe('core', () => {
 
     expect(childClipShader.props).toEqual({
       radius: 16,
+      nodeRadius: [0, 0, 0, 0],
       clipX: 0,
       clipY: 0,
       clipW: 192,
       clipH: 240,
+    });
+  });
+
+  it('preserves child radius when updating rounded child clipping', () => {
+    const card = new ElementNode('view');
+    const image = new ElementNode('view');
+    const badge = new ElementNode('view');
+    const childClipShader = {
+      shaderKey: 'roundedChildClip',
+      value: { nodeRadius: [0, 0, 6, 0] },
+      set props(value) {
+        this.value = value;
+      },
+      get props() {
+        return this.value;
+      },
+    };
+
+    card.display = 'flex';
+    card.flexDirection = 'column';
+    card.clipping = true;
+    card.color = '#ffffff15';
+    card.lng.shader = {
+      shaderKey: 'rounded',
+      props: { radius: 16 },
+    } as any;
+    card._calcWidth = true;
+    card._calcHeight = true;
+
+    image.rendered = true;
+    image.lng = {
+      src: 'avatar.png',
+    } as any;
+    image.width = 192;
+    image.height = 192;
+
+    badge.rendered = true;
+    badge.lng = {
+      shader: childClipShader,
+    } as any;
+    badge.width = 96;
+    badge.height = 32;
+
+    card.insertChild(image);
+    card.insertChild(badge);
+    card.updateLayout();
+
+    expect(childClipShader.props).toEqual({
+      radius: 16,
+      nodeRadius: [0, 0, 6, 0],
+      clipX: 0,
+      clipY: 192,
+      clipW: 192,
+      clipH: 224,
     });
   });
 

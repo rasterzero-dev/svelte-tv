@@ -250,8 +250,12 @@ function updateRoundedChildClipDescendants(ancestor: ElementNode) {
 
     if (child.rendered && isRoundedChildClipShaderNode(child.lng.shader)) {
       const offset = getOffsetFromAncestor(child, ancestor);
+      const childClipShader = child.lng.shader as {
+        props?: { nodeRadius?: unknown };
+      };
       child.lng.shader.props = {
         radius: shader.props?.radius,
+        nodeRadius: childClipShader.props?.nodeRadius ?? [0, 0, 0, 0],
         clipX: offset.x,
         clipY: offset.y,
         clipW: ancestor.w,
@@ -2067,12 +2071,16 @@ export class ElementNode {
         renderer.stage.renderer.mode === 'webgl'
       ) {
         const offset = getOffsetFromAncestor(node, roundedClipAncestor);
+        const nodeRadius = isRoundedShaderNode(props.shader)
+          ? (props.shader as { props?: { radius?: unknown } }).props?.radius
+          : undefined;
         props.shader = renderer.createShader('roundedChildClip', {
           radius: (
             roundedClipAncestor.lng.shader as {
               props?: { radius?: unknown };
             }
           ).props?.radius,
+          nodeRadius: nodeRadius ?? [0, 0, 0, 0],
           clipX: offset.x,
           clipY: offset.y,
           clipW: roundedClipAncestor.w,

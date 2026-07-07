@@ -68,6 +68,7 @@ export type ShaderLinearGradient = CanvasShader<ShaderLinearGradientProps>;
 
 type RoundedChildClipProps = {
   radius: number | number[];
+  nodeRadius: number | number[];
   clipX: number;
   clipY: number;
   clipW: number;
@@ -130,6 +131,12 @@ const RoundedChildClip: WebGlShader<RoundedChildClipProps> = {
         return toValidVec4(value);
       },
     },
+    nodeRadius: {
+      default: [0, 0, 0, 0],
+      resolve(value) {
+        return toValidVec4(value);
+      },
+    },
     clipX: 0,
     clipY: 0,
     clipW: 0,
@@ -143,6 +150,14 @@ const RoundedChildClip: WebGlShader<RoundedChildClipProps> = {
         props.radius as Vec4,
         props.clipW,
         props.clipH,
+      ),
+    );
+    this.uniform4fa(
+      'u_nodeRadius',
+      calcFactoredRadiusArray(
+        props.nodeRadius as Vec4,
+        node.w,
+        node.h,
       ),
     );
     this.uniform2f('u_clipOffset', props.clipX, props.clipY);
@@ -162,6 +177,7 @@ const RoundedChildClip: WebGlShader<RoundedChildClipProps> = {
     uniform sampler2D u_texture;
 
     uniform vec4 u_radius;
+    uniform vec4 u_nodeRadius;
     uniform vec2 u_clipOffset;
     uniform vec2 u_clipSize;
 
@@ -178,13 +194,19 @@ const RoundedChildClip: WebGlShader<RoundedChildClipProps> = {
 
     void main() {
       vec4 color = texture2D(u_texture, v_textureCoords) * v_color;
+      vec2 halfDimensions = (u_dimensions * 0.5);
+      vec2 nodeUv = v_nodeCoords.xy * u_dimensions - halfDimensions;
+      float nodeDist = roundedBox(nodeUv, halfDimensions, u_nodeRadius);
+
       vec2 clipHalfDimensions = (u_clipSize * 0.5);
       vec2 clipPosition = v_nodeCoords.xy * u_dimensions + u_clipOffset;
       vec2 boxUv = clipPosition - clipHalfDimensions;
       float boxDist = roundedBox(boxUv, clipHalfDimensions, u_radius);
+
       float edgeWidth = 1.0 / u_pixelRatio;
-      float roundedAlpha = 1.0 - smoothstep(-0.5 * edgeWidth, 0.5 * edgeWidth, boxDist);
-      gl_FragColor = color * roundedAlpha * u_alpha;
+      float nodeAlpha = 1.0 - smoothstep(-0.5 * edgeWidth, 0.5 * edgeWidth, nodeDist);
+      float clipAlpha = 1.0 - smoothstep(-0.5 * edgeWidth, 0.5 * edgeWidth, boxDist);
+      gl_FragColor = color * nodeAlpha * clipAlpha * u_alpha;
     }
   `,
 };
