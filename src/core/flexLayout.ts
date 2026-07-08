@@ -1,6 +1,26 @@
 import { type ElementNode } from './elementNode.js';
 import { isTextNode, isElementText } from './utils.js';
 
+function getScratch(node: ElementNode, size: number) {
+  let scratch = node._flexLayoutScratch;
+  if (!scratch || scratch.capacity < size) {
+    scratch = {
+      capacity: size,
+      processableChildrenIndices: [],
+      childMainSizes: new Float32Array(size),
+      childMarginStarts: new Float32Array(size),
+      childMarginEnds: new Float32Array(size),
+      childTotalMainSizes: new Float32Array(size),
+      childCrossSizes: new Float32Array(size),
+      childMarginCrossStarts: new Float32Array(size),
+      childMarginCrossEnds: new Float32Array(size),
+    };
+    node._flexLayoutScratch = scratch;
+  }
+  scratch.processableChildrenIndices.length = 0;
+  return scratch;
+}
+
 function getArrayValue(
   val: number | number[] | undefined,
   index: number,
@@ -19,6 +39,16 @@ function getArrayValue(
     result = val[index];
   }
   return result ?? defaultValue;
+}
+
+function setLayoutNumber(
+  node: ElementNode,
+  key: 'x' | 'y' | 'width' | 'height',
+  value: number,
+) {
+  if (node[key] !== value) {
+    node[key] = value;
+  }
 }
 
 export default function calculateFlex(
@@ -55,8 +85,8 @@ export default function calculateFlex(
     return false;
   }
 
-  // Optimize arrays caching
-  const processableChildrenIndices: number[] = [];
+  const scratch = getScratch(node, numChildren);
+  const processableChildrenIndices = scratch.processableChildrenIndices;
   let hasOrder = false;
   let totalFlexGrow = 0;
   let totalFlexShrink = 0;
@@ -136,14 +166,13 @@ export default function calculateFlex(
   const align = node.alignItems || 'flexStart';
   let containerUpdated = false;
 
-  // Resolve sizes matching old processed calculation
-  const childMainSizes = new Float32Array(numProcessedChildren);
-  const childMarginStarts = new Float32Array(numProcessedChildren);
-  const childMarginEnds = new Float32Array(numProcessedChildren);
-  const childTotalMainSizes = new Float32Array(numProcessedChildren);
-  const childCrossSizes = new Float32Array(numProcessedChildren);
-  const childMarginCrossStarts = new Float32Array(numProcessedChildren);
-  const childMarginCrossEnds = new Float32Array(numProcessedChildren);
+  const childMainSizes = scratch.childMainSizes;
+  const childMarginStarts = scratch.childMarginStarts;
+  const childMarginEnds = scratch.childMarginEnds;
+  const childTotalMainSizes = scratch.childTotalMainSizes;
+  const childCrossSizes = scratch.childCrossSizes;
+  const childMarginCrossStarts = scratch.childMarginCrossStarts;
+  const childMarginCrossEnds = scratch.childMarginCrossEnds;
 
   let sumOfFlexBaseSizesWithMargins = 0;
 
@@ -200,7 +229,7 @@ export default function calculateFlex(
         if (flexGrowValue > 0) {
           const shareOfSpace = (flexGrowValue / totalFlexGrow) * availableSpace;
           const newMainSize = childMainSizes[idx]! + shareOfSpace;
-          c[dimension] = newMainSize;
+          setLayoutNumber(c, dimension, newMainSize);
           childMainSizes[idx] = newMainSize;
           childTotalMainSizes[idx] =
             newMainSize + childMarginStarts[idx]! + childMarginEnds[idx]!;
@@ -233,7 +262,7 @@ export default function calculateFlex(
               newMainSize = minBound;
             }
 
-            c[dimension] = newMainSize;
+            setLayoutNumber(c, dimension, newMainSize);
             childMainSizes[idx] = newMainSize;
             childTotalMainSizes[idx] =
               newMainSize + childMarginStarts[idx]! + childMarginEnds[idx]!;
@@ -267,7 +296,8 @@ export default function calculateFlex(
     }
     if (calculatedSize !== (node[dimension] || 0)) {
       node[`preFlex${dimension}`] = containerSize;
-      node[dimension] = containerSize = calculatedSize;
+      setLayoutNumber(node, dimension, calculatedSize);
+      containerSize = calculatedSize;
       containerUpdated = true;
     }
   }
@@ -287,18 +317,28 @@ export default function calculateFlex(
       containerCrossSize - paddingCrossStart - paddingCrossEnd,
     );
     if (alignSelf === 'flexStart') {
-      c[crossProp] = crossCurrentPos + childMarginCrossStarts[idx]!;
+      setLayoutNumber(
+        c,
+        crossProp,
+        crossCurrentPos + childMarginCrossStarts[idx]!,
+      );
     } else if (alignSelf === 'center') {
-      c[crossProp] =
+      setLayoutNumber(
+        c,
+        crossProp,
         crossCurrentPos +
-        (innerCrossSize - childCrossSizes[idx]!) / 2 +
-        childMarginCrossStarts[idx]!;
+          (innerCrossSize - childCrossSizes[idx]!) / 2 +
+          childMarginCrossStarts[idx]!,
+      );
     } else if (alignSelf === 'flexEnd') {
-      c[crossProp] =
+      setLayoutNumber(
+        c,
+        crossProp,
         crossCurrentPos +
-        innerCrossSize -
-        childCrossSizes[idx]! -
-        childMarginCrossEnds[idx]!;
+          innerCrossSize -
+          childCrossSizes[idx]! -
+          childMarginCrossEnds[idx]!,
+      );
     } else if (alignSelf === 'stretch') {
       const currentCrossSize = childCrossSizes[idx]!;
       const stretchedCrossSize = Math.max(
@@ -307,9 +347,13 @@ export default function calculateFlex(
           childMarginCrossStarts[idx]! -
           childMarginCrossEnds[idx]!,
       );
-      c[crossDimension] = stretchedCrossSize;
+      setLayoutNumber(c, crossDimension, stretchedCrossSize);
       childCrossSizes[idx] = stretchedCrossSize;
-      c[crossProp] = crossCurrentPos + childMarginCrossStarts[idx]!;
+      setLayoutNumber(
+        c,
+        crossProp,
+        crossCurrentPos + childMarginCrossStarts[idx]!,
+      );
       if (stretchedCrossSize !== currentCrossSize && c.display === 'flex') {
         calculateFlex(c, crossDimension);
       }
@@ -333,7 +377,8 @@ export default function calculateFlex(
       : node[crossDimension];
     if (newCrossSize !== node[crossDimension]) {
       containerUpdated = true;
-      node[crossDimension] = containerCrossSize = newCrossSize;
+      setLayoutNumber(node, crossDimension, newCrossSize);
+      containerCrossSize = newCrossSize;
     }
   }
 
@@ -358,7 +403,7 @@ export default function calculateFlex(
             ? -(childCrossSizeVar + crossGap)
             : childCrossSizeVar + crossGap;
         }
-        c[prop] = currentPos + childMarginStarts[idx]!;
+        setLayoutNumber(c, prop, currentPos + childMarginStarts[idx]!);
         currentPos += childTotalMainSizes[idx]! + gap;
         doCrossAlign(c, idx, crossCurrentPos);
       }
@@ -369,13 +414,13 @@ export default function calculateFlex(
 
       if (node[crossDimension] !== finalCrossSize) {
         node[`preFlex${crossDimension}`] = node[crossDimension];
-        node[crossDimension] = finalCrossSize;
+        setLayoutNumber(node, crossDimension, finalCrossSize);
         containerUpdated = true;
       }
     } else {
       for (let idx = 0; idx < numProcessedChildren; idx++) {
         const c = children[processableChildrenIndices[idx]!] as ElementNode;
-        c[prop] = currentPos + childMarginStarts[idx]!;
+        setLayoutNumber(c, prop, currentPos + childMarginStarts[idx]!);
         currentPos += childTotalMainSizes[idx]! + gap;
         doCrossAlign(c, idx, paddingCrossStart);
       }
@@ -394,7 +439,7 @@ export default function calculateFlex(
       }
       if (calculatedSize !== (node[dimension] || 0)) {
         node[`preFlex${dimension}`] = containerSize;
-        node[dimension] = calculatedSize;
+        setLayoutNumber(node, dimension, calculatedSize);
         return true;
       }
     }
@@ -402,7 +447,11 @@ export default function calculateFlex(
     currentPos = containerSize - paddingEnd;
     for (let idx = numProcessedChildren - 1; idx >= 0; idx--) {
       const c = children[processableChildrenIndices[idx]!] as ElementNode;
-      c[prop] = currentPos - childMainSizes[idx]! - childMarginEnds[idx]!;
+      setLayoutNumber(
+        c,
+        prop,
+        currentPos - childMainSizes[idx]! - childMarginEnds[idx]!,
+      );
       currentPos -= childTotalMainSizes[idx]! + gap;
       doCrossAlign(c, idx, paddingCrossStart);
     }
@@ -412,7 +461,7 @@ export default function calculateFlex(
       (containerSize - nodePaddingTotal - (totalItemSize + totalGapSize)) / 2;
     for (let idx = 0; idx < numProcessedChildren; idx++) {
       const c = children[processableChildrenIndices[idx]!] as ElementNode;
-      c[prop] = currentPos + childMarginStarts[idx]!;
+      setLayoutNumber(c, prop, currentPos + childMarginStarts[idx]!);
       currentPos += childTotalMainSizes[idx]! + gap;
       doCrossAlign(c, idx, paddingCrossStart);
     }
@@ -425,7 +474,7 @@ export default function calculateFlex(
     currentPos = paddingStart;
     for (let idx = 0; idx < numProcessedChildren; idx++) {
       const c = children[processableChildrenIndices[idx]!] as ElementNode;
-      c[prop] = currentPos + childMarginStarts[idx]!;
+      setLayoutNumber(c, prop, currentPos + childMarginStarts[idx]!);
       currentPos += childTotalMainSizes[idx]! + spaceBetween;
       doCrossAlign(c, idx, paddingCrossStart);
     }
@@ -438,7 +487,7 @@ export default function calculateFlex(
     currentPos = paddingStart + spaceAround / 2;
     for (let idx = 0; idx < numProcessedChildren; idx++) {
       const c = children[processableChildrenIndices[idx]!] as ElementNode;
-      c[prop] = currentPos + childMarginStarts[idx]!;
+      setLayoutNumber(c, prop, currentPos + childMarginStarts[idx]!);
       currentPos += childTotalMainSizes[idx]! + spaceAround;
       doCrossAlign(c, idx, paddingCrossStart);
     }
@@ -449,7 +498,7 @@ export default function calculateFlex(
     currentPos = spaceEvenly + paddingStart;
     for (let idx = 0; idx < numProcessedChildren; idx++) {
       const c = children[processableChildrenIndices[idx]!] as ElementNode;
-      c[prop] = currentPos + childMarginStarts[idx]!;
+      setLayoutNumber(c, prop, currentPos + childMarginStarts[idx]!);
       currentPos += childTotalMainSizes[idx]! + spaceEvenly;
       doCrossAlign(c, idx, paddingCrossStart);
     }

@@ -1,6 +1,6 @@
 {
   "name": "svelte-tv",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "Svelte speed for every screen 🚀✨",
   "type": "module",
   "exports": {
@@ -51,6 +51,8 @@
     "lint": "prettier --check \"**/*.{svelte,ts,js,json,md}\"",
     "lint:fix": "prettier --write \"**/*.{svelte,ts,js,json,md}\"",
     "test": "vitest",
+    "bench": "vitest bench",
+    "bench:memory": "node --expose-gc ./node_modules/vitest/vitest.mjs run --config benchmarks/vitest.memory.config.ts",
     "build:playground": "vite build playground --config ./vite.config.ts",
     "build:lab": "vite build playground-lab --config ./playground-lab/vite.config.ts",
     "preview": "vite preview playground --config ./vite.config.ts --host 0.0.0.0 --port 4173 --strictPort",

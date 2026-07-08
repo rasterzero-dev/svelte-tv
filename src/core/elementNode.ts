@@ -76,6 +76,13 @@ let nextActiveElement: ElementNode | null = null;
 let deferredFocusElement: ElementNode | null = null;
 const layoutQueue = new Set<ElementNode>();
 const elementDeleteQueue: ElementNode[] = [];
+let roundedClipTreeVersion = 0;
+let activeLayoutPassId = 0;
+let nextLayoutPassId = 0;
+
+export function invalidateRoundedClipTree() {
+  roundedClipTreeVersion++;
+}
 
 export function enqueueDelete(node: ElementNode, n: number) {
   if (node._queueDelete === undefined) {
@@ -97,6 +104,7 @@ function schedulePostMutation() {
     : undefined;
   if (reprocessUpdates) {
     reprocessUpdates(runPostMutation);
+    return;
   }
   queueMicrotask(runPostMutation);
 }
@@ -117,12 +125,14 @@ function runPostMutation() {
 
   // Phase 2: layout
   while (layoutQueue.size > 0) {
+    activeLayoutPassId = ++nextLayoutPassId;
     const queue = [...layoutQueue];
     layoutQueue.clear();
     for (let i = queue.length - 1; i >= 0; i--) {
       const node = queue[i] as ElementNode;
-      node.updateLayout();
+      node.updateLayout(true);
     }
+    activeLayoutPassId = 0;
   }
 
   // Phase 3: focus.  setFocus() may have evaluated forwardFocus pre-render
@@ -140,8 +150,14 @@ function runPostMutation() {
 }
 
 function addToLayoutQueue(node: ElementNode) {
+  node._layoutDirtyVersion++;
   layoutQueue.add(node);
   schedulePostMutation();
+}
+
+function addToLayoutQueueWithoutScheduling(node: ElementNode) {
+  node._layoutDirtyVersion++;
+  layoutQueue.add(node);
 }
 
 // Text-default template, built once on first use.  Config.fontSettings is
@@ -181,11 +197,7 @@ function getStateStyleFallbackDefault(styleKey: string) {
 }
 
 function isShaderNode(value: unknown): value is IRendererShader {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    'shaderType' in value
-  );
+  return !!value && typeof value === 'object' && 'shaderType' in value;
 }
 
 function isRoundedShaderNode(value: unknown) {
@@ -205,9 +217,21 @@ function isRoundedChildClipShaderNode(value: unknown) {
 }
 
 function hasTextureChild(node: ElementNode) {
-  return node.children.some(
-    (child) => isElementNode(child) && !!(child.lng.src || child.lng.texture),
-  );
+  if (node._roundedClipTextureChildVersion === node._childrenVersion) {
+    return node._roundedClipHasTextureChild === true;
+  }
+
+  let hasTexture = false;
+  for (let i = 0; i < node.children.length; i++) {
+    const child = node.children[i];
+    if (isElementNode(child) && !!(child.lng.src || child.lng.texture)) {
+      hasTexture = true;
+      break;
+    }
+  }
+  node._roundedClipTextureChildVersion = node._childrenVersion;
+  node._roundedClipHasTextureChild = hasTexture;
+  return hasTexture;
 }
 
 function shouldUseRoundedChildClipping(node: ElementNode) {
@@ -220,12 +244,23 @@ function shouldUseRoundedChildClipping(node: ElementNode) {
 }
 
 function findRoundedChildClipAncestor(node: ElementNode) {
+  if (node._roundedClipAncestorVersion === roundedClipTreeVersion) {
+    return node._roundedClipAncestor;
+  }
+
   let ancestor = node.parent;
 
   while (ancestor) {
-    if (shouldUseRoundedChildClipping(ancestor)) return ancestor;
+    if (shouldUseRoundedChildClipping(ancestor)) {
+      node._roundedClipAncestor = ancestor;
+      node._roundedClipAncestorVersion = roundedClipTreeVersion;
+      return ancestor;
+    }
     ancestor = ancestor.parent;
   }
+
+  node._roundedClipAncestor = undefined;
+  node._roundedClipAncestorVersion = roundedClipTreeVersion;
 }
 
 function getOffsetFromAncestor(node: ElementNode, ancestor: ElementNode) {
@@ -251,16 +286,36 @@ function updateRoundedChildClipDescendants(ancestor: ElementNode) {
     if (child.rendered && isRoundedChildClipShaderNode(child.lng.shader)) {
       const offset = getOffsetFromAncestor(child, ancestor);
       const childClipShader = child.lng.shader as {
-        props?: { nodeRadius?: unknown };
+        props?: {
+          radius?: unknown;
+          nodeRadius?: unknown;
+          clipX?: number;
+          clipY?: number;
+          clipW?: number;
+          clipH?: number;
+        };
       };
-      child.lng.shader.props = {
-        radius: shader.props?.radius,
-        nodeRadius: childClipShader.props?.nodeRadius ?? [0, 0, 0, 0],
-        clipX: offset.x,
-        clipY: offset.y,
-        clipW: ancestor.w,
-        clipH: ancestor.h,
-      };
+      const current = childClipShader.props;
+      const radius = shader.props?.radius;
+      const nodeRadius = current?.nodeRadius ?? [0, 0, 0, 0];
+      if (
+        !current ||
+        current.radius !== radius ||
+        current.nodeRadius !== nodeRadius ||
+        current.clipX !== offset.x ||
+        current.clipY !== offset.y ||
+        current.clipW !== ancestor.w ||
+        current.clipH !== ancestor.h
+      ) {
+        child.lng.shader.props = {
+          radius,
+          nodeRadius,
+          clipX: offset.x,
+          clipY: offset.y,
+          clipW: ancestor.w,
+          clipH: ancestor.h,
+        };
+      }
     }
 
     updateRoundedChildClipDescendants(child);
@@ -565,6 +620,10 @@ export interface ElementNode extends RendererNode, FocusNode {
   _animationRunning?: boolean;
   _animationSettings?: AnimationSettings;
   _autofocus?: any;
+  _appliedProps?: Record<string, unknown>;
+  _calcHeight?: boolean;
+  _calcWidth?: boolean;
+  _childrenVersion: number;
   _containsFlexGrow?: boolean | null;
   _deferAlphaUntilLayout?: number | undefined;
   _hasRenderedChildren?: boolean;
@@ -581,12 +640,30 @@ export interface ElementNode extends RendererNode, FocusNode {
   _transitionAnimations?: Record<string, IAnimationController | undefined>;
   _transitionAnimationVersions?: Record<string, number | undefined>;
   _lastAnyKeyPressTime?: number;
+  _lastLayoutPassId?: number;
+  _lastLayoutVersion?: number;
+  _layoutDirtyVersion: number;
   _svelteEffect?: unknown;
   _type: 'element' | 'textNode';
   _undoStyles?: string[];
   _display?: 'flex' | 'block';
   _onLayout?: (this: ElementNode, target: ElementNode) => void;
   _requiresLayout: boolean;
+  _roundedClipAncestor?: ElementNode;
+  _roundedClipAncestorVersion?: number;
+  _roundedClipHasTextureChild?: boolean;
+  _roundedClipTextureChildVersion?: number;
+  _flexLayoutScratch?: {
+    capacity: number;
+    processableChildrenIndices: number[];
+    childMainSizes: Float32Array;
+    childMarginStarts: Float32Array;
+    childMarginEnds: Float32Array;
+    childTotalMainSizes: Float32Array;
+    childCrossSizes: Float32Array;
+    childMarginCrossStarts: Float32Array;
+    childMarginCrossEnds: Float32Array;
+  };
   autosize?: boolean;
   /**
    * Optional component name for inspector / dev tooling — emitted by the
@@ -1042,8 +1119,10 @@ export class ElementNode {
     this._animationRunning = undefined;
     this._animationSettings = undefined;
     this._autofocus = undefined;
+    this._appliedProps = undefined;
     this._calcWidth = undefined;
     this._calcHeight = undefined;
+    this._childrenVersion = 0;
     this._containsFlexGrow = undefined;
     this._deferAlphaUntilLayout = undefined;
     this._hasRenderedChildren = undefined;
@@ -1060,11 +1139,19 @@ export class ElementNode {
     this._transitionAnimations = undefined;
     this._transitionAnimationVersions = undefined;
     this._lastAnyKeyPressTime = undefined;
+    this._lastLayoutPassId = undefined;
+    this._lastLayoutVersion = undefined;
+    this._layoutDirtyVersion = 0;
     this._svelteEffect = undefined;
     this._undoStyles = undefined;
     this._display = undefined;
     this._onLayout = undefined;
     this._requiresLayout = false;
+    this._roundedClipAncestor = undefined;
+    this._roundedClipAncestorVersion = undefined;
+    this._roundedClipHasTextureChild = undefined;
+    this._roundedClipTextureChildVersion = undefined;
+    this._flexLayoutScratch = undefined;
   }
 
   get effects(): StyleEffects | undefined {
@@ -1131,6 +1218,8 @@ export class ElementNode {
 
   set parent(p) {
     this._parent = p;
+    this._roundedClipAncestor = undefined;
+    this._roundedClipAncestorVersion = undefined;
     if (this.rendered && p?.rendered) {
       this.lng.parent = (p.lng as IRendererNode) ?? null;
     }
@@ -1201,15 +1290,21 @@ export class ElementNode {
       // We need to insert following DOM insertBefore which moves elements.
       spliceItem(this.children, node as ElementNode, 1);
       if (spliceItem(this.children, beforeNode as ElementNode, 0, node) > -1) {
+        this._childrenVersion++;
+        invalidateRoundedClipTree();
         return;
       }
     }
 
     this.children.push(node as ElementNode);
+    this._childrenVersion++;
+    invalidateRoundedClipTree();
   }
 
   removeChild(node: ElementNode | ElementText | TextNode) {
     if (spliceItem(this.children, node, 1) > -1) {
+      this._childrenVersion++;
+      invalidateRoundedClipTree();
       if (isElementNode(node) && node.onRemove) {
         node.onRemove.call(node, node);
       }
@@ -1243,6 +1338,7 @@ export class ElementNode {
     } else {
       this.lng.shader = shaderProps;
     }
+    invalidateRoundedClipTree();
   }
 
   _sendToLightningAnimatable(name: string, value: number) {
@@ -1306,6 +1402,14 @@ export class ElementNode {
     }
     (this.lng[name as keyof (IRendererNode | INode)] as number | string) =
       value;
+    if (
+      name === 'color' &&
+      (this.clipping === true ||
+        isRoundedShaderNode(this.lng.shader) ||
+        this._roundedClipHasTextureChild === true)
+    ) {
+      invalidateRoundedClipTree();
+    }
   }
 
   _fireAnimationEvents(
@@ -1506,6 +1610,20 @@ export class ElementNode {
     if (isINode(this.lng)) {
       this.lng.destroy();
     }
+    this._animationQueue = undefined;
+    this._animationQueueSettings = undefined;
+    this._animationRunning = undefined;
+    this._appliedProps = undefined;
+    this._flexLayoutScratch = undefined;
+    this._parent = undefined;
+    this._rendererProps = undefined;
+    this._roundedClipAncestor = undefined;
+    this._roundedClipAncestorVersion = undefined;
+    this._roundedClipHasTextureChild = undefined;
+    this._roundedClipTextureChildVersion = undefined;
+    this._svelteEffect = undefined;
+    this._transitionAnimations = undefined;
+    this._transitionAnimationVersions = undefined;
   }
 
   set style(style: Styles | undefined) {
@@ -1559,11 +1677,13 @@ export class ElementNode {
   set src(src) {
     if (typeof src === 'string') {
       this.lng.src = src;
+      invalidateRoundedClipTree();
       if (!this.color && this.rendered) {
         this.color = 0xffffffff;
       }
     } else {
       this.color = 0x00000000;
+      invalidateRoundedClipTree();
     }
   }
 
@@ -1593,10 +1713,11 @@ export class ElementNode {
   }
 
   set states(states: NodeStates) {
+    const previous = this._states?.join('\0');
     this._states = this._states
       ? this._states.merge(states)
       : new States(this._stateChanged.bind(this), states);
-    if (this.rendered) {
+    if (this.rendered && this._states.join('\0') !== previous) {
       this._stateChanged();
     }
   }
@@ -1702,7 +1823,17 @@ export class ElementNode {
     return null;
   }
 
-  updateLayout() {
+  updateLayout(fromQueue = false) {
+    if (
+      fromQueue &&
+      activeLayoutPassId !== 0 &&
+      this._lastLayoutPassId === activeLayoutPassId &&
+      this._lastLayoutVersion === this._layoutDirtyVersion
+    ) {
+      return;
+    }
+    const layoutVersion = this._layoutDirtyVersion;
+    this._lastLayoutPassId = activeLayoutPassId;
     if (this.hasChildren) {
       if (isDev) log('Layout: ', this);
 
@@ -1735,6 +1866,7 @@ export class ElementNode {
         updateRoundedChildClipDescendants(this);
       }
     }
+    this._lastLayoutVersion = layoutVersion;
   }
 
   _stateChanged() {
@@ -1802,9 +1934,11 @@ export class ElementNode {
       let newStyles: Styles;
       if (numStates === 1) {
         newStyles = this[states[0] as keyof Styles] as Styles;
-        newStyles = stylesToUndo
-          ? { ...stylesToUndo, ...newStyles }
-          : newStyles;
+        if (stylesToUndo && newStyles) {
+          newStyles = Object.assign(stylesToUndo, newStyles);
+        } else {
+          newStyles = newStyles || stylesToUndo!;
+        }
       } else {
         let sortedStates = states as DollarString[];
         const stateOrder = this.stateOrder || Config.stateOrder;
@@ -1822,10 +1956,13 @@ export class ElementNode {
           });
         }
 
-        newStyles = sortedStates.reduce((acc, state) => {
+        newStyles = stylesToUndo || {};
+        for (const state of sortedStates) {
           const styles = this[state];
-          return styles ? { ...acc, ...styles } : acc;
-        }, stylesToUndo || {});
+          if (styles) {
+            Object.assign(newStyles, styles);
+          }
+        }
       }
 
       if (newStyles) {
@@ -1879,7 +2016,7 @@ export class ElementNode {
     }
 
     if (parent.requiresLayout()) {
-      layoutQueue.add(parent);
+      addToLayoutQueueWithoutScheduling(parent);
     }
 
     if (this.rendered) {

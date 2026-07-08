@@ -1,7 +1,11 @@
 import type { Snippet } from 'svelte';
 import { getContext, setContext } from 'svelte';
 import { active_effect } from 'svelte/internal/client';
-import { ElementNode, enqueueDelete } from './elementNode.js';
+import {
+  ElementNode,
+  enqueueDelete,
+  invalidateRoundedClipTree,
+} from './elementNode.js';
 import type { ElementText, NodeProps, TextProps } from './intrinsicTypes.js';
 import { TextNode } from './nodeTypes.js';
 import { isElementText } from './utils.js';
@@ -63,6 +67,8 @@ export function unmountNode(node: ElementNode) {
 
 export function applyNodeProps(node: ElementNode, props: Record<string, any>) {
   let reapplyState = false;
+  let changed = false;
+  const appliedProps = (node._appliedProps = node._appliedProps || {});
 
   for (const [key, value] of Object.entries(props)) {
     if (
@@ -74,21 +80,34 @@ export function applyNodeProps(node: ElementNode, props: Record<string, any>) {
       continue;
     }
 
-    if (value !== undefined) {
-      if (node._stateStyleFallbacks && key in node._stateStyleFallbacks) {
-        node._stateStyleFallbacks[key] = value;
-        reapplyState = true;
-      }
-      if (key === 'style') {
-        reapplyState = true;
-      }
-      node[key] = value;
+    if (value === undefined) {
+      delete appliedProps[key];
+      continue;
     }
+
+    if (appliedProps[key] === value) {
+      continue;
+    }
+    appliedProps[key] = value;
+    changed = true;
+    if (node._stateStyleFallbacks && key in node._stateStyleFallbacks) {
+      node._stateStyleFallbacks[key] = value;
+      reapplyState = true;
+    }
+    if (key === 'style') {
+      reapplyState = true;
+    }
+    if (key === 'clipping') {
+      invalidateRoundedClipTree();
+    }
+    node[key] = value;
   }
   if (reapplyState && node._states?.length) {
     node._stateChanged();
   }
-  node.rerender();
+  if (changed) {
+    node.rerender();
+  }
 }
 
 function findNextSibling(node: ElementNode, parent: ElementNode) {
