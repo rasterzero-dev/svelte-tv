@@ -63,6 +63,8 @@ export function unmountNode(node: ElementNode) {
 
 export function applyNodeProps(node: ElementNode, props: Record<string, any>) {
   let reapplyState = false;
+  let changed = false;
+  const appliedProps = (node._appliedProps = node._appliedProps || {});
 
   for (const [key, value] of Object.entries(props)) {
     if (
@@ -75,6 +77,11 @@ export function applyNodeProps(node: ElementNode, props: Record<string, any>) {
     }
 
     if (value !== undefined) {
+      if (appliedProps[key] === value) {
+        continue;
+      }
+      appliedProps[key] = value;
+      changed = true;
       if (node._stateStyleFallbacks && key in node._stateStyleFallbacks) {
         node._stateStyleFallbacks[key] = value;
         reapplyState = true;
@@ -88,7 +95,9 @@ export function applyNodeProps(node: ElementNode, props: Record<string, any>) {
   if (reapplyState && node._states?.length) {
     node._stateChanged();
   }
-  node.rerender();
+  if (changed) {
+    node.rerender();
+  }
 }
 
 function findNextSibling(node: ElementNode, parent: ElementNode) {

@@ -1,6 +1,26 @@
 import { type ElementNode } from './elementNode.js';
 import { isTextNode, isElementText } from './utils.js';
 
+function getScratch(node: ElementNode, size: number) {
+  let scratch = node._flexLayoutScratch;
+  if (!scratch || scratch.capacity < size) {
+    scratch = {
+      capacity: size,
+      processableChildrenIndices: [],
+      childMainSizes: new Float32Array(size),
+      childMarginStarts: new Float32Array(size),
+      childMarginEnds: new Float32Array(size),
+      childTotalMainSizes: new Float32Array(size),
+      childCrossSizes: new Float32Array(size),
+      childMarginCrossStarts: new Float32Array(size),
+      childMarginCrossEnds: new Float32Array(size),
+    };
+    node._flexLayoutScratch = scratch;
+  }
+  scratch.processableChildrenIndices.length = 0;
+  return scratch;
+}
+
 function getArrayValue(
   val: number | number[] | undefined,
   index: number,
@@ -55,8 +75,8 @@ export default function calculateFlex(
     return false;
   }
 
-  // Optimize arrays caching
-  const processableChildrenIndices: number[] = [];
+  const scratch = getScratch(node, numChildren);
+  const processableChildrenIndices = scratch.processableChildrenIndices;
   let hasOrder = false;
   let totalFlexGrow = 0;
   let totalFlexShrink = 0;
@@ -136,14 +156,13 @@ export default function calculateFlex(
   const align = node.alignItems || 'flexStart';
   let containerUpdated = false;
 
-  // Resolve sizes matching old processed calculation
-  const childMainSizes = new Float32Array(numProcessedChildren);
-  const childMarginStarts = new Float32Array(numProcessedChildren);
-  const childMarginEnds = new Float32Array(numProcessedChildren);
-  const childTotalMainSizes = new Float32Array(numProcessedChildren);
-  const childCrossSizes = new Float32Array(numProcessedChildren);
-  const childMarginCrossStarts = new Float32Array(numProcessedChildren);
-  const childMarginCrossEnds = new Float32Array(numProcessedChildren);
+  const childMainSizes = scratch.childMainSizes;
+  const childMarginStarts = scratch.childMarginStarts;
+  const childMarginEnds = scratch.childMarginEnds;
+  const childTotalMainSizes = scratch.childTotalMainSizes;
+  const childCrossSizes = scratch.childCrossSizes;
+  const childMarginCrossStarts = scratch.childMarginCrossStarts;
+  const childMarginCrossEnds = scratch.childMarginCrossEnds;
 
   let sumOfFlexBaseSizesWithMargins = 0;
 

@@ -65,6 +65,17 @@ describe('core', () => {
     expect(activeElement()).toBe(next);
   });
 
+  it('does not rerender when applied props are unchanged', () => {
+    const node = renderedNode();
+    const rerender = vi.spyOn(node, 'rerender');
+    const style = { color: '#38bdf8ff' };
+
+    applyNodeProps(node, { x: 10, style });
+    applyNodeProps(node, { x: 10, style });
+
+    expect(rerender).toHaveBeenCalledTimes(1);
+  });
+
   it('forwards navigable focus to the selected child', async () => {
     const row = renderedNode();
     const first = renderedNode();
@@ -127,6 +138,16 @@ describe('core', () => {
     expect(node.scale).toBe(1);
   });
 
+  it('does not reapply unchanged states on rendered nodes', () => {
+    const node = renderedNode();
+    const stateChanged = vi.spyOn(node, '_stateChanged');
+
+    node.states = ['$focus'];
+    node.states = ['$focus'];
+
+    expect(stateChanged).toHaveBeenCalledTimes(1);
+  });
+
   it('reapplies state styles when a focused node is reused with new props', () => {
     const node = renderedNode();
     applyNodeProps(node, {
@@ -171,6 +192,30 @@ describe('core', () => {
 
     expect(wide.width).toBe(300);
     expect(narrow.width).toBe(300);
+  });
+
+  it('reuses flex layout scratch buffers across layout passes', () => {
+    const row = new ElementNode('view');
+    const first = new ElementNode('view');
+    const second = new ElementNode('view');
+
+    row.display = 'flex';
+    row.width = 300;
+    row.height = 80;
+    first.width = 80;
+    first.height = 40;
+    second.width = 80;
+    second.height = 40;
+    row.insertChild(first);
+    row.insertChild(second);
+
+    row.updateLayout();
+    const scratch = row._flexLayoutScratch;
+    const mainSizes = scratch?.childMainSizes;
+    row.updateLayout();
+
+    expect(row._flexLayoutScratch).toBe(scratch);
+    expect(row._flexLayoutScratch?.childMainSizes).toBe(mainSizes);
   });
 
   it('recalculates stretched flex children with their new cross size', () => {
@@ -448,6 +493,36 @@ describe('core', () => {
     node.states.remove('$focus');
 
     expect(controller.stop).toHaveBeenCalledTimes(3);
+  });
+
+  it('releases internal caches when destroyed', () => {
+    const parent = new ElementNode('view');
+    const node = renderedNode();
+    const destroy = vi.fn();
+
+    parent.insertChild(node);
+    node.lng = { destroy } as any;
+    node._appliedProps = { x: 10 };
+    node._flexLayoutScratch = {
+      capacity: 1,
+      processableChildrenIndices: [0],
+      childMainSizes: new Float32Array(1),
+      childMarginStarts: new Float32Array(1),
+      childMarginEnds: new Float32Array(1),
+      childTotalMainSizes: new Float32Array(1),
+      childCrossSizes: new Float32Array(1),
+      childMarginCrossStarts: new Float32Array(1),
+      childMarginCrossEnds: new Float32Array(1),
+    };
+    node._svelteEffect = {};
+
+    node.destroy();
+
+    expect(destroy).toHaveBeenCalledTimes(1);
+    expect(node.parent).toBeUndefined();
+    expect(node._appliedProps).toBeUndefined();
+    expect(node._flexLayoutScratch).toBeUndefined();
+    expect(node._svelteEffect).toBeUndefined();
   });
 
   it('does not clear a transition while a reused controller is still running', async () => {
