@@ -24,4 +24,6 @@
     <Route path="" component={DemoShell} />
     <Route path=":section" component={DemoShell} />
   </HashRouter>
+
+  <FPSCounter></FPSCounter>
 </LightningRoot>
