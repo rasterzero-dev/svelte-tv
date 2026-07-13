@@ -51,6 +51,31 @@ function setLayoutNumber(
   }
 }
 
+function getFlexItemSize(node: ElementNode, dimension: 'width' | 'height') {
+  const shouldFitContent =
+    node.display !== 'flex' &&
+    (dimension === 'width' ? node._calcWidth : node._calcHeight);
+  if (!shouldFitContent || !node.hasChildren) {
+    return node[dimension] || 0;
+  }
+
+  const position = dimension === 'width' ? 'x' : 'y';
+  const paddingEnd =
+    dimension === 'width'
+      ? (node.paddingRight ?? getArrayValue(node.padding, 1))
+      : (node.paddingBottom ?? getArrayValue(node.padding, 2));
+  let size = 0;
+
+  for (const child of node.children) {
+    if (isTextNode(child)) continue;
+    size = Math.max(size, (child[position] || 0) + (child[dimension] || 0));
+  }
+
+  size += paddingEnd;
+  setLayoutNumber(node, dimension, size);
+  return size;
+}
+
 export default function calculateFlex(
   node: ElementNode,
   lockedDimension?: 'width' | 'height',
@@ -184,7 +209,7 @@ export default function calculateFlex(
     const flexBasis = c.flexBasis;
     const isBasisAuto = flexBasis === undefined || flexBasis === 'auto';
     const computedBasis = isBasisAuto
-      ? c[dimension] || 0
+      ? getFlexItemSize(c, dimension)
       : (flexBasis as number);
     const baseMainSize = isBasisAuto
       ? computedBasis
@@ -207,7 +232,7 @@ export default function calculateFlex(
     childMarginStarts[idx] = marginStart;
     childMarginEnds[idx] = marginEnd;
     childTotalMainSizes[idx] = baseMainSize + marginStart + marginEnd;
-    childCrossSizes[idx] = c[crossDimension] || 0;
+    childCrossSizes[idx] = getFlexItemSize(c, crossDimension);
     childMarginCrossStarts[idx] = marginCrossStart;
     childMarginCrossEnds[idx] = marginCrossEnd;
 
@@ -468,8 +493,11 @@ export default function calculateFlex(
   } else if (justify === 'spaceBetween') {
     const spaceBetween =
       numProcessedChildren > 1
-        ? (containerSize - totalItemSize - nodePaddingTotal) /
-          (numProcessedChildren - 1)
+        ? Math.max(
+            0,
+            (containerSize - totalItemSize - nodePaddingTotal) /
+              (numProcessedChildren - 1),
+          )
         : 0;
     currentPos = paddingStart;
     for (let idx = 0; idx < numProcessedChildren; idx++) {

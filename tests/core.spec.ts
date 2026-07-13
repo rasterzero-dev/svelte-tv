@@ -225,6 +225,87 @@ describe('core', () => {
     expect(narrow.width).toBe(300);
   });
 
+  it('sizes implicit flex item wrappers from their content', () => {
+    const row = new ElementNode('view');
+    const wrappers = Array.from({ length: 3 }, () => {
+      const wrapper = new ElementNode('view');
+      const button = new ElementNode('view');
+      wrapper.width = 1920;
+      wrapper.height = 1080;
+      wrapper._calcWidth = true;
+      wrapper._calcHeight = true;
+      button.width = 80;
+      button.height = 80;
+      wrapper.insertChild(button);
+      return wrapper;
+    });
+
+    row.display = 'flex';
+    row.justifyContent = 'spaceBetween';
+    row.width = 1920;
+    row.height = 80;
+    wrappers.forEach((wrapper) => row.insertChild(wrapper));
+
+    row.updateLayout();
+
+    expect(wrappers.map((wrapper) => wrapper.width)).toEqual([80, 80, 80]);
+    expect(wrappers.map((wrapper) => wrapper.height)).toEqual([80, 80, 80]);
+    expect(wrappers.map((wrapper) => wrapper.x)).toEqual([0, 920, 1840]);
+  });
+
+  it('keeps content-sized bottom bars inside column containers', () => {
+    const player = new ElementNode('view');
+    const header = new ElementNode('view');
+    const title = new ElementNode('view');
+    const bottom = new ElementNode('view');
+    const button = new ElementNode('view');
+
+    player.display = 'flex';
+    player.flexDirection = 'column';
+    player.justifyContent = 'spaceBetween';
+    player.width = 1920;
+    player.height = 1080;
+    header.height = 1080;
+    header._calcHeight = true;
+    title.width = 300;
+    title.height = 60;
+    header.insertChild(title);
+    bottom.display = 'flex';
+    bottom._calcWidth = true;
+    bottom._calcHeight = true;
+    button.width = 80;
+    button.height = 80;
+    bottom.insertChild(button);
+    player.insertChild(header);
+    player.insertChild(bottom);
+
+    bottom.updateLayout();
+    player.updateLayout();
+
+    expect(header.height).toBe(60);
+    expect(bottom.height).toBe(80);
+    expect(bottom.y).toBe(1000);
+  });
+
+  it('falls back to flexStart when spaceBetween items overflow', () => {
+    const row = new ElementNode('view');
+    const first = new ElementNode('view');
+    const second = new ElementNode('view');
+
+    row.display = 'flex';
+    row.justifyContent = 'spaceBetween';
+    row.width = 100;
+    first.width = 80;
+    second.width = 80;
+    row.insertChild(first);
+    row.insertChild(second);
+
+    row.updateLayout();
+
+    expect(first.x).toBe(0);
+    expect(second.x).toBe(80);
+  });
+
   it('reuses flex layout scratch buffers across layout passes', () => {
     const row = new ElementNode('view');
     const first = new ElementNode('view');
