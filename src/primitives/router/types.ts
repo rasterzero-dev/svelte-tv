@@ -6,10 +6,12 @@ export interface RouteLocation {
   path: string;
   hash: string;
   query: URLSearchParams;
+  state: unknown;
 }
 
 export type NavigateOptions = {
   replace?: boolean;
+  state?: unknown;
 };
 
 export type NavigateFn = (href: string, options?: NavigateOptions) => void;

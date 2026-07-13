@@ -21,6 +21,11 @@ describe('router', () => {
     const location = createLocation('#/browse/all?filter=popular');
     expect(location.path).toBe('/browse/all');
     expect(location.query.get('filter')).toBe('popular');
+    expect(location.state).toBeNull();
+
+    expect(createLocation('#/watch/episode', { fansub: ' tercih' }).state).toEqual({
+      fansub: ' tercih',
+    });
   });
 
   it('matches nested routes with params', () => {

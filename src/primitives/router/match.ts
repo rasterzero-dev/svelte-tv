@@ -18,13 +18,14 @@ export function normalizePath(path: string | undefined) {
   return normalized.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
 }
 
-export function createLocation(hash: string): RouteLocation {
+export function createLocation(hash: string, state: unknown = null): RouteLocation {
   const value = hash.startsWith('#') ? hash.slice(1) : hash;
   const [path = '/', query = ''] = value.split('?');
   return {
     path: normalizePath(path),
     hash: `#${value}`,
     query: new URLSearchParams(query),
+    state,
   };
 }
 

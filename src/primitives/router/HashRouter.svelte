@@ -9,6 +9,7 @@
     MatchedRoute,
     NavigateFn,
     RouteComponentProps,
+    RouteContextValue,
     RouteDefinition,
     RouteLocation,
   } from './types.js';
@@ -32,16 +33,15 @@
 
   const navigate: NavigateFn = (href, options) => {
     const path = href.startsWith('#') ? href.slice(1) : href;
-    if (options?.replace) {
-      window.history.replaceState(null, '', `#${path}`);
-      currentLocation = createLocation(path);
-      return;
-    }
-
-    window.location.hash = path;
+    window.history[options?.replace ? 'replaceState' : 'pushState'](
+      options?.state ?? null,
+      '',
+      `#${path}`,
+    );
+    updateLocation();
   };
 
-  const context = {
+  const context: RouteContextValue = {
     registerRoute(route) {
       routes = [...routes, route];
       return () => {
@@ -67,7 +67,7 @@
   });
 
   function updateLocation() {
-    currentLocation = createLocation(window.location.hash);
+    currentLocation = createLocation(window.location.hash, window.history.state);
   }
 
   $effect(() => {
@@ -109,10 +109,12 @@
   onMount(() => {
     updateLocation();
     window.addEventListener('hashchange', updateLocation);
+    window.addEventListener('popstate', updateLocation);
   });
 
   onDestroy(() => {
     window.removeEventListener('hashchange', updateLocation);
+    window.removeEventListener('popstate', updateLocation);
     clearRouterContext(context);
   });
 </script>
