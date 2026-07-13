@@ -245,7 +245,10 @@ export default function calculateFlex(
     const totalGapSpace =
       numProcessedChildren > 0 ? gap * (numProcessedChildren - 1) : 0;
     const availableSpace =
-      containerSize - sumOfFlexBaseSizesWithMargins - totalGapSpace;
+      containerSize -
+      nodePaddingTotal -
+      sumOfFlexBaseSizesWithMargins -
+      totalGapSpace;
 
     if (availableSpace > 0 && totalFlexGrow > 0) {
       for (let idx = 0; idx < numProcessedChildren; idx++) {

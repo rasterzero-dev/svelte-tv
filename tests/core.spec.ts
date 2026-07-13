@@ -306,6 +306,31 @@ describe('core', () => {
     expect(second.x).toBe(80);
   });
 
+  it('excludes container padding from flex grow space', () => {
+    const row = new ElementNode('view');
+    const leading = new ElementNode('view');
+    const content = new ElementNode('view');
+    const trailing = new ElementNode('view');
+
+    row.display = 'flex';
+    row.width = 640;
+    row.paddingLeft = 24;
+    row.paddingRight = 24;
+    row.gap = 16;
+    leading.width = 32;
+    content.flexGrow = 1;
+    trailing.width = 32;
+    row.insertChild(leading);
+    row.insertChild(content);
+    row.insertChild(trailing);
+
+    row.updateLayout();
+
+    expect(content.width).toBe(496);
+    expect(trailing.x).toBe(584);
+    expect(trailing.x + trailing.width).toBe(616);
+  });
+
   it('reuses flex layout scratch buffers across layout passes', () => {
     const row = new ElementNode('view');
     const first = new ElementNode('view');
