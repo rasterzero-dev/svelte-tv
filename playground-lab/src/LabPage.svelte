@@ -22,6 +22,10 @@
     measuredFontSize,
   );
   const measuredWidth = measureFontText(measuredText, measuredMetrics);
+  const gifUrl =
+    'https://static.klipy.com/ii/4493325008d34b7bf8cd6813cd5c1619/bb/2c/e0wqUEQSusDpGnCM3.gif';
+  const secondGifUrl =
+    'https://static2.klipy.com/ii/d7aec6f6f171607374b2065c836f92f4/67/0b/GEZS56Cc.gif';
 
   function go(path: string) {
     navigate(path);
@@ -95,6 +99,12 @@
         fontSize={24}
         color="#93c5fdff"
       />
+    </View>
+
+    <View w={720} h={250} color="#182230ff" borderRadius={8} padding={28}>
+      <Text text="Animated GIF" fontSize={26} color="#f8fafcff" />
+      <View y={52} w={320} h={180} src={gifUrl} />
+      <View x={344} y={52} w={320} h={180} src={secondGifUrl} />
     </View>
 
     <View w={900} h={250} color="#182230ff" borderRadius={8} padding={28}>

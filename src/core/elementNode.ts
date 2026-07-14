@@ -1682,6 +1682,7 @@ export class ElementNode {
         this.color = 0xffffffff;
       }
     } else {
+      this.lng.src = null;
       this.color = 0x00000000;
       invalidateRoundedClipTree();
     }
