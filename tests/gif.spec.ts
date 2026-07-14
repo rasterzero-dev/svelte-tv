@@ -26,9 +26,15 @@ describe('GIF support', () => {
       width: 1,
       height: 1,
       loopCount: 1,
+      frameCount: 2,
     });
-    expect(gif.frames.map((frame) => frame.duration)).toEqual([50, 100]);
-    expect(Array.from(gif.frames[0]!.pixels)).toEqual([255, 0, 0, 255]);
-    expect(Array.from(gif.frames[1]!.pixels)).toEqual([0, 0, 255, 255]);
+    const firstFrame = gif.decodeFrame(0);
+    const secondFrame = gif.decodeFrame(1);
+    const repeatedFirstFrame = gif.decodeFrame(0);
+
+    expect([firstFrame.duration, secondFrame.duration]).toEqual([50, 100]);
+    expect(Array.from(firstFrame.pixels)).toEqual([255, 0, 0, 255]);
+    expect(Array.from(secondFrame.pixels)).toEqual([0, 0, 255, 255]);
+    expect(Array.from(repeatedFirstFrame.pixels)).toEqual([255, 0, 0, 255]);
   });
 });
