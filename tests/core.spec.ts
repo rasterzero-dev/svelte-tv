@@ -1,4 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
+
+const renderer = vi.hoisted(() => ({
+  createTexture: vi.fn(),
+  stage: {
+    platform: { fetch: vi.fn() },
+    txManager: { loadTexture: vi.fn() },
+  },
+}));
+
+vi.mock('../src/core/lightningInit.js', () => ({ renderer }));
+
 import {
   activeElement,
   applyNodeProps,
@@ -100,6 +111,62 @@ describe('core', () => {
     expect(node.lng.srcX).toBe(12);
     expect(node.lng.srcY).toBe(24);
     expect(applySourceCropTexture).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the previous source crop until the next one is loaded', async () => {
+    const node = renderedNode();
+    const previousTexture = { state: 'loaded' };
+    const nextTexture = { state: 'initial' };
+    let finishLoading: () => void;
+    const loading = new Promise<void>((resolve) => {
+      finishLoading = resolve;
+    });
+    renderer.createTexture.mockReturnValueOnce(nextTexture);
+    renderer.stage.txManager.loadTexture.mockImplementationOnce(
+      async (texture) => {
+        await loading;
+        texture.state = 'loaded';
+      },
+    );
+    node.lng = {
+      color: 0xffffffff,
+      srcX: 0,
+      srcY: 0,
+      srcWidth: 100,
+      srcHeight: 50,
+      texture: previousTexture,
+    } as any;
+    node._src = 'image.png';
+    node._sourceBlob = new Blob();
+    node._sourceBlobSrc = 'image.png';
+
+    node._applySourceCropTexture();
+
+    expect(node.lng.texture).toBe(previousTexture);
+    finishLoading!();
+    await loading;
+    await Promise.resolve();
+    expect(node.lng.texture).toBe(nextTexture);
+  });
+
+  it('keeps the initial source crop transparent while it loads', () => {
+    const node = renderedNode();
+    renderer.stage.platform.fetch.mockReturnValueOnce(new Promise(() => {}));
+    node.lng = {
+      color: undefined,
+      src: 'image.png',
+      srcX: 0,
+      srcY: 0,
+      srcWidth: 100,
+      srcHeight: 50,
+      texture: null,
+    } as any;
+    node._src = 'image.png';
+
+    node._applySourceCropTexture();
+
+    expect(node.lng.color).toBe(0x00000000);
+    expect(node.lng.texture).toBeNull();
   });
 
   it('forwards navigable focus to the selected child', async () => {

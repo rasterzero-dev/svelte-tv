@@ -639,6 +639,8 @@ export interface ElementNode extends RendererNode, FocusNode {
   _sourceBlob?: Blob;
   _sourceBlobPromise?: Promise<Blob>;
   _sourceBlobSrc?: string;
+  _sourceCropColor?: number;
+  _sourceCropVersion?: number;
   _src?: string | null;
   _theme?: Styles;
   _transitionAnimations?: Record<string, IAnimationController | undefined>;
@@ -1142,6 +1144,8 @@ export class ElementNode {
     this._sourceBlob = undefined;
     this._sourceBlobPromise = undefined;
     this._sourceBlobSrc = undefined;
+    this._sourceCropColor = undefined;
+    this._sourceCropVersion = 0;
     this._src = undefined;
     this._theme = undefined;
     this._transitionAnimations = undefined;
@@ -1632,6 +1636,8 @@ export class ElementNode {
     this._sourceBlob = undefined;
     this._sourceBlobPromise = undefined;
     this._sourceBlobSrc = undefined;
+    this._sourceCropColor = undefined;
+    this._sourceCropVersion = undefined;
     this._src = undefined;
     this._svelteEffect = undefined;
     this._transitionAnimations = undefined;
@@ -1700,6 +1706,8 @@ export class ElementNode {
       this._sourceBlob = undefined;
       this._sourceBlobPromise = undefined;
       this._sourceBlobSrc = undefined;
+      this._sourceCropColor = undefined;
+      this._sourceCropVersion = (this._sourceCropVersion ?? 0) + 1;
       this.lng.src = null;
       this.color = 0x00000000;
       invalidateRoundedClipTree();
@@ -1720,23 +1728,44 @@ export class ElementNode {
       return false;
     }
 
-    if (props.color === undefined) {
-      props.color = 0xffffffff;
-    }
-
     props.src = null;
+    const cropVersion = (this._sourceCropVersion ?? 0) + 1;
+    this._sourceCropVersion = cropVersion;
     if (this._sourceBlob && this._sourceBlobSrc === src) {
-      props.texture = renderer.createTexture('ImageTexture', {
+      if (props.texture || this._sourceCropColor === undefined) {
+        this._sourceCropColor = toColorNumber(props.color ?? 0xffffffff);
+      }
+      if (!props.texture) {
+        props.color = 0x00000000;
+      }
+
+      const texture = renderer.createTexture('ImageTexture', {
         src: this._sourceBlob,
         sx: props.srcX,
         sy: props.srcY,
         sw: props.srcWidth,
         sh: props.srcHeight,
       });
+
+      renderer.stage.txManager.loadTexture(texture, true).then(() => {
+        if (
+          this._sourceCropVersion !== cropVersion ||
+          texture.state !== 'loaded' ||
+          !this.rendered
+        ) {
+          return;
+        }
+        this.lng.texture = texture;
+        this.lng.color = this._sourceCropColor ?? 0xffffffff;
+      });
       return true;
     }
 
-    props.texture = null;
+    if (!props.texture) {
+      this._sourceCropColor ??= toColorNumber(props.color ?? 0xffffffff);
+      props.color = 0x00000000;
+      props.texture = null;
+    }
     if (!this._sourceBlobPromise || this._sourceBlobSrc !== src) {
       this._sourceBlob = undefined;
       this._sourceBlobSrc = src;
