@@ -201,10 +201,14 @@ function isShaderNode(value: unknown): value is IRendererShader {
 }
 
 function isRoundedShaderNode(value: unknown) {
+  if (!value || typeof value !== 'object') return false;
+
+  const shaderKey = (value as { shaderKey?: unknown }).shaderKey;
   return (
-    !!value &&
-    typeof value === 'object' &&
-    (value as { shaderKey?: unknown }).shaderKey === 'rounded'
+    shaderKey === 'rounded' ||
+    shaderKey === 'roundedWithBorder' ||
+    shaderKey === 'roundedWithShadow' ||
+    shaderKey === 'roundedWithBorderWithShadow'
   );
 }
 
@@ -277,14 +281,75 @@ function getOffsetFromAncestor(node: ElementNode, ancestor: ElementNode) {
   return { x, y };
 }
 
-function updateRoundedChildClipDescendants(ancestor: ElementNode) {
-  const shader = ancestor.lng.shader as { props?: { radius?: unknown } };
+function getRoundedChildClipProps(
+  node: ElementNode,
+  ancestor: ElementNode,
+  nodeRadius: unknown,
+) {
+  const offset = getOffsetFromAncestor(node, ancestor);
+  const props = ancestor.lng.shader?.props as
+    | Record<string, unknown>
+    | undefined;
+  const borderWidth = props?.['border-w'] as number | number[] | undefined;
+  const borderAlign = props?.['border-align'];
+  const align =
+    typeof borderAlign === 'number'
+      ? borderAlign
+      : borderAlign === 'outside'
+        ? 1
+        : borderAlign === 'center'
+          ? 0.5
+          : 0;
+  const gap = (props?.['border-gap'] as number | undefined) ?? 0;
+  const inset = (index: number) =>
+    Math.max(0, getBoxValue(borderWidth, index) * (1 - align) - gap);
+  const top = inset(0);
+  const right = inset(1);
+  const bottom = inset(2);
+  const left = inset(3);
+  const radius = props?.radius;
+  const radii = toRadiusArray(radius);
 
+  return {
+    radius:
+      top || right || bottom || left
+        ? [
+            Math.max(0, radii[0] - Math.max(top, left)),
+            Math.max(0, radii[1] - Math.max(top, right)),
+            Math.max(0, radii[2] - Math.max(bottom, right)),
+            Math.max(0, radii[3] - Math.max(bottom, left)),
+          ]
+        : radius,
+    nodeRadius,
+    clipX: offset.x - left,
+    clipY: offset.y - top,
+    clipW: left || right ? Math.max(0, ancestor.w - left - right) : ancestor.w,
+    clipH: top || bottom ? Math.max(0, ancestor.h - top - bottom) : ancestor.h,
+  };
+}
+
+function toRadiusArray(value: unknown): [number, number, number, number] {
+  if (typeof value === 'number') return [value, value, value, value];
+  if (!Array.isArray(value)) return [0, 0, 0, 0];
+
+  if (value.length === 1) return [value[0], value[0], value[0], value[0]];
+  if (value.length === 2) return [value[0], value[1], value[0], value[1]];
+  if (value.length === 3) return [value[0], value[1], value[2], value[0]];
+  return [value[0] ?? 0, value[1] ?? 0, value[2] ?? 0, value[3] ?? 0];
+}
+
+function radiusEquals(a: unknown, b: unknown) {
+  if (a === b) return true;
+  const left = toRadiusArray(a);
+  const right = toRadiusArray(b);
+  return left.every((value, index) => value === right[index]);
+}
+
+function updateRoundedChildClipDescendants(ancestor: ElementNode) {
   for (const child of ancestor.children) {
     if (!isElementNode(child)) continue;
 
     if (child.rendered && isRoundedChildClipShaderNode(child.lng.shader)) {
-      const offset = getOffsetFromAncestor(child, ancestor);
       const childClipShader = child.lng.shader as {
         props?: {
           radius?: unknown;
@@ -296,25 +361,18 @@ function updateRoundedChildClipDescendants(ancestor: ElementNode) {
         };
       };
       const current = childClipShader.props;
-      const radius = shader.props?.radius;
       const nodeRadius = current?.nodeRadius ?? [0, 0, 0, 0];
+      const next = getRoundedChildClipProps(child, ancestor, nodeRadius);
       if (
         !current ||
-        current.radius !== radius ||
-        current.nodeRadius !== nodeRadius ||
-        current.clipX !== offset.x ||
-        current.clipY !== offset.y ||
-        current.clipW !== ancestor.w ||
-        current.clipH !== ancestor.h
+        !radiusEquals(current.radius, next.radius) ||
+        current.nodeRadius !== next.nodeRadius ||
+        current.clipX !== next.clipX ||
+        current.clipY !== next.clipY ||
+        current.clipW !== next.clipW ||
+        current.clipH !== next.clipH
       ) {
-        child.lng.shader.props = {
-          radius,
-          nodeRadius,
-          clipX: offset.x,
-          clipY: offset.y,
-          clipW: ancestor.w,
-          clipH: ancestor.h,
-        };
+        child.lng.shader.props = next;
       }
     }
 
@@ -2306,22 +2364,17 @@ export class ElementNode {
         (!props.shader || isRoundedShaderNode(props.shader)) &&
         renderer.stage.renderer.mode === 'webgl'
       ) {
-        const offset = getOffsetFromAncestor(node, roundedClipAncestor);
         const nodeRadius = isRoundedShaderNode(props.shader)
           ? (props.shader as { props?: { radius?: unknown } }).props?.radius
           : undefined;
-        props.shader = renderer.createShader('roundedChildClip', {
-          radius: (
-            roundedClipAncestor.lng.shader as {
-              props?: { radius?: unknown };
-            }
-          ).props?.radius,
-          nodeRadius: nodeRadius ?? [0, 0, 0, 0],
-          clipX: offset.x,
-          clipY: offset.y,
-          clipW: roundedClipAncestor.w,
-          clipH: roundedClipAncestor.h,
-        });
+        props.shader = renderer.createShader(
+          'roundedChildClip',
+          getRoundedChildClipProps(
+            node,
+            roundedClipAncestor,
+            nodeRadius ?? [0, 0, 0, 0],
+          ),
+        );
       }
       if (
         props.clipping === true &&

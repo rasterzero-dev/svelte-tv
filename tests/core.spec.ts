@@ -642,6 +642,59 @@ describe('core', () => {
     expect(setProps).toHaveBeenCalledTimes(1);
   });
 
+  it('clips texture children inside a rounded border', () => {
+    const card = new ElementNode('view');
+    const image = new ElementNode('view');
+    const setProps = vi.fn();
+    const childClipShader = {
+      shaderKey: 'roundedChildClip',
+      value: { nodeRadius: [0, 0, 0, 0] },
+      set props(value) {
+        this.value = value;
+        setProps(value);
+      },
+      get props() {
+        return this.value;
+      },
+    };
+
+    card.clipping = true;
+    card.color = '#0000004d';
+    card.width = 192;
+    card.height = 108;
+    card.lng.shader = {
+      shaderKey: 'roundedWithBorder',
+      props: {
+        radius: 8,
+        'border-w': [4, 4, 4, 4],
+        'border-align': 0,
+        'border-gap': 0,
+      },
+    } as any;
+
+    image.rendered = true;
+    image.lng = {
+      src: 'preview.png',
+      shader: childClipShader,
+    } as any;
+    image.width = 192;
+    image.height = 108;
+    card.insertChild(image);
+
+    card.updateLayout();
+    card.updateLayout();
+
+    expect(childClipShader.props).toEqual({
+      radius: [4, 4, 4, 4],
+      nodeRadius: [0, 0, 0, 0],
+      clipX: -4,
+      clipY: -4,
+      clipW: 184,
+      clipH: 100,
+    });
+    expect(setProps).toHaveBeenCalledTimes(1);
+  });
+
   it('stops an in-flight transition before starting another for the same prop', () => {
     const first = {
       start: vi.fn(function () {
