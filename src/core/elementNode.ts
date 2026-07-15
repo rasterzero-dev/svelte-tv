@@ -636,6 +636,10 @@ export interface ElementNode extends RendererNode, FocusNode {
   _style?: Styles;
   _stateStyleFallbacks?: Record<string, unknown>;
   _stateStyleFallbackVersion?: number;
+  _sourceBlob?: Blob;
+  _sourceBlobPromise?: Promise<Blob>;
+  _sourceBlobSrc?: string;
+  _src?: string | null;
   _theme?: Styles;
   _transitionAnimations?: Record<string, IAnimationController | undefined>;
   _transitionAnimationVersions?: Record<string, number | undefined>;
@@ -1135,6 +1139,10 @@ export class ElementNode {
     this._style = undefined;
     this._stateStyleFallbacks = undefined;
     this._stateStyleFallbackVersion = undefined;
+    this._sourceBlob = undefined;
+    this._sourceBlobPromise = undefined;
+    this._sourceBlobSrc = undefined;
+    this._src = undefined;
     this._theme = undefined;
     this._transitionAnimations = undefined;
     this._transitionAnimationVersions = undefined;
@@ -1621,6 +1629,10 @@ export class ElementNode {
     this._roundedClipAncestorVersion = undefined;
     this._roundedClipHasTextureChild = undefined;
     this._roundedClipTextureChildVersion = undefined;
+    this._sourceBlob = undefined;
+    this._sourceBlobPromise = undefined;
+    this._sourceBlobSrc = undefined;
+    this._src = undefined;
     this._svelteEffect = undefined;
     this._transitionAnimations = undefined;
     this._transitionAnimationVersions = undefined;
@@ -1675,13 +1687,19 @@ export class ElementNode {
   }
 
   set src(src) {
+    this._src = typeof src === 'string' ? src : null;
     if (typeof src === 'string') {
-      this.lng.src = src;
+      if (!this.rendered || !this._applySourceCropTexture()) {
+        this.lng.src = src;
+      }
       invalidateRoundedClipTree();
       if (!this.color && this.rendered) {
         this.color = 0xffffffff;
       }
     } else {
+      this._sourceBlob = undefined;
+      this._sourceBlobPromise = undefined;
+      this._sourceBlobSrc = undefined;
       this.lng.src = null;
       this.color = 0x00000000;
       invalidateRoundedClipTree();
@@ -1689,7 +1707,56 @@ export class ElementNode {
   }
 
   get src(): string | null | undefined {
-    return this.lng.src;
+    return this._src ?? this.lng.src;
+  }
+
+  _applySourceCropTexture(props = this.lng) {
+    const src = this._src ?? props.src;
+    if (
+      typeof src !== 'string' ||
+      typeof props.srcWidth !== 'number' ||
+      typeof props.srcHeight !== 'number'
+    ) {
+      return false;
+    }
+
+    if (props.color === undefined) {
+      props.color = 0xffffffff;
+    }
+
+    props.src = null;
+    if (this._sourceBlob && this._sourceBlobSrc === src) {
+      props.texture = renderer.createTexture('ImageTexture', {
+        src: this._sourceBlob,
+        sx: props.srcX,
+        sy: props.srcY,
+        sw: props.srcWidth,
+        sh: props.srcHeight,
+      });
+      return true;
+    }
+
+    props.texture = null;
+    if (!this._sourceBlobPromise || this._sourceBlobSrc !== src) {
+      this._sourceBlob = undefined;
+      this._sourceBlobSrc = src;
+      const sourceBlobPromise = renderer.stage.platform.fetch(
+        src,
+      ) as Promise<Blob>;
+      this._sourceBlobPromise = sourceBlobPromise;
+      sourceBlobPromise
+        .then((blob) => {
+          if (this._sourceBlobPromise !== sourceBlobPromise) return;
+          this._sourceBlob = blob;
+          if (this.rendered) this._applySourceCropTexture();
+        })
+        .catch(() => {
+          if (this._sourceBlobPromise === sourceBlobPromise) {
+            this._sourceBlobPromise = undefined;
+          }
+        });
+    }
+    return true;
   }
 
   getChildById(id: string) {
@@ -2153,6 +2220,8 @@ export class ElementNode {
         }
       }
     } else {
+      node._applySourceCropTexture(props);
+
       // If its not an image or texture apply some defaults
       if (!props.texture) {
         let flexFitsWidth = false;

@@ -11,6 +11,7 @@ import { TextNode } from './nodeTypes.js';
 import { isElementText } from './utils.js';
 
 const nodeContext = Symbol('svelte-tv-node');
+const sourceCropProps = new Set(['srcX', 'srcY', 'srcWidth', 'srcHeight']);
 
 interface SvelteEffect {
   parent: SvelteEffect | null;
@@ -68,6 +69,7 @@ export function unmountNode(node: ElementNode) {
 export function applyNodeProps(node: ElementNode, props: Record<string, any>) {
   let reapplyState = false;
   let changed = false;
+  let reloadSource = false;
   const appliedProps = (node._appliedProps = node._appliedProps || {});
 
   for (const [key, value] of Object.entries(props)) {
@@ -101,6 +103,12 @@ export function applyNodeProps(node: ElementNode, props: Record<string, any>) {
       invalidateRoundedClipTree();
     }
     node[key] = value;
+    if (sourceCropProps.has(key)) {
+      reloadSource = true;
+    }
+  }
+  if (reloadSource && node.rendered && typeof node.src === 'string') {
+    node._applySourceCropTexture();
   }
   if (reapplyState && node._states?.length) {
     node._stateChanged();

@@ -87,6 +87,21 @@ describe('core', () => {
     expect(node.x).toBe(10);
   });
 
+  it('updates a source crop once when its coordinates change', () => {
+    const node = renderedNode();
+    const applySourceCropTexture = vi
+      .spyOn(node, '_applySourceCropTexture')
+      .mockReturnValue(true);
+    node.lng = { src: 'image.png', srcX: 0, srcY: 0 } as any;
+    node._appliedProps = { src: 'image.png', srcX: 0, srcY: 0 };
+
+    applyNodeProps(node, { src: 'image.png', srcX: 12, srcY: 24 });
+
+    expect(node.lng.srcX).toBe(12);
+    expect(node.lng.srcY).toBe(24);
+    expect(applySourceCropTexture).toHaveBeenCalledOnce();
+  });
+
   it('forwards navigable focus to the selected child', async () => {
     const row = renderedNode();
     const first = renderedNode();
