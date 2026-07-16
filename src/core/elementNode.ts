@@ -12,6 +12,7 @@ import {
   TextProps,
   type OnEvent,
   NewOmit,
+  OutlineStyle,
   SingleBorderStyle,
   type DollarString,
 } from './intrinsicTypes.js';
@@ -208,7 +209,9 @@ function isRoundedShaderNode(value: unknown) {
     shaderKey === 'rounded' ||
     shaderKey === 'roundedWithBorder' ||
     shaderKey === 'roundedWithShadow' ||
-    shaderKey === 'roundedWithBorderWithShadow'
+    shaderKey === 'roundedWithBorderWithShadow' ||
+    shaderKey === 'roundedWithOutline' ||
+    shaderKey === 'roundedWithOutlineAndEffects'
   );
 }
 
@@ -387,6 +390,7 @@ const EFFECT_SHADER_KEYS = [
   'borderBottom',
   'borderLeft',
   'shadow',
+  'outline',
 ] as const satisfies ReadonlyArray<keyof StyleEffects>;
 
 function getBoxValue(
@@ -469,7 +473,8 @@ const parseAndAssignShaderProps = (
     return;
   }
   Object.entries(obj).forEach(([key, value]) => {
-    let transformedKey = key === 'width' ? 'w' : key;
+    let transformedKey =
+      key === 'width' && actualPrefix === 'border' ? 'w' : key;
     const transformedValue =
       transformedKey === 'color' &&
       (typeof value === 'string' || typeof value === 'number')
@@ -497,6 +502,14 @@ function getEffectsShaderType(v: StyleEffects | Record<string, unknown>) {
     props['border-w'] ||
     props['border-color'];
   const hasShadow = props.shadow || props['shadow-color'];
+  const hasOutline =
+    props.outline ||
+    Object.keys(props).some((key) => key.startsWith('outline-'));
+
+  if (hasOutline)
+    return hasBorder || hasShadow
+      ? 'roundedWithOutlineAndEffects'
+      : 'roundedWithOutline';
 
   if (hasBorder) type += 'WithBorder';
   if (hasShadow) type += 'WithShadow';
@@ -857,6 +870,10 @@ export interface ElementNode extends RendererNode, FocusNode {
    * @see https://lightning-tv.github.io/solid/#/essentials/effects?id=border-and-borderradius
    */
   border?: BorderStyle;
+  /**
+   * A solid outline drawn around the element without affecting layout.
+   */
+  outline?: OutlineStyle;
   /**
    * The border style for the bottom side of the element.
    *
@@ -1234,15 +1251,19 @@ export class ElementNode {
    * (first time) or self-assign so the DOM renderer's setter reapplies style;
    * pre-render we just attach the bag for the upcoming `render()`.
    */
-  _writeShaderTarget(target: unknown) {
+  _writeShaderTarget(target: unknown, shaderType?: string) {
     if (this.rendered) {
       if (!this.lng.shader) {
-        this.lng.shader = Config.convertToShader(this, target as StyleEffects);
+        this.lng.shader = shaderType
+          ? renderer.createShader(shaderType, target as IRendererShaderProps)
+          : Config.convertToShader(this, target as StyleEffects);
       } else if (
         this.lng.shader?.shaderKey !==
-        getEffectsShaderType(target as Record<string, unknown>)
+        (shaderType ?? getEffectsShaderType(target as Record<string, unknown>))
       ) {
-        this.lng.shader = Config.convertToShader(this, target as StyleEffects);
+        this.lng.shader = shaderType
+          ? renderer.createShader(shaderType, target as IRendererShaderProps)
+          : Config.convertToShader(this, target as StyleEffects);
       } else if (isDomRendererActive()) {
         // eslint-disable-next-line no-self-assign -- lng.shader is a setter, force style update
         this.lng.shader = this.lng.shader;
@@ -2385,13 +2406,24 @@ export class ElementNode {
         !hasTextureChild(node)
       ) {
         props.rtt = true;
-        props.shader = renderer.createShader('roundedClip', {
-          radius: (
-            props.shader as {
-              props?: { radius?: unknown };
-            }
-          ).props?.radius,
-        });
+        const shader = props.shader as {
+          shaderKey?: string;
+          props?: Record<string, unknown>;
+        };
+        const shaderProps = shader.props;
+        const hasOutline = shader.shaderKey?.startsWith('roundedWithOutline');
+        props.shader = renderer.createShader(
+          hasOutline ? 'roundedClipWithOutline' : 'roundedClip',
+          hasOutline
+            ? {
+                radius: shaderProps?.radius,
+                'outline-width': shaderProps?.['outline-width'],
+                'outline-color': shaderProps?.['outline-color'],
+                'outline-offset': shaderProps?.['outline-offset'],
+                'outline-opacity': shaderProps?.['outline-opacity'],
+              }
+            : { radius: shaderProps?.radius },
+        );
       }
 
       if (isDev) log('Rendering: ', this, props);
@@ -2510,7 +2542,8 @@ export function shaderAccessor<T extends Record<string, any> | number>(
     | 'borderBottom'
     | 'borderLeft'
     | 'borderRight'
-    | 'borderTop',
+    | 'borderTop'
+    | 'outline',
 ) {
   return {
     set(this: ElementNode, value: T) {
@@ -2519,6 +2552,7 @@ export function shaderAccessor<T extends Record<string, any> | number>(
       this._effects[key] = value;
 
       let animationSettings: AnimationSettings | undefined;
+      let shouldAnimate = false;
 
       if (this.lng.shader?.props) {
         target = this.lng.shader.props;
@@ -2527,6 +2561,7 @@ export function shaderAccessor<T extends Record<string, any> | number>(
           this.transition &&
           (this.transition === true || this.transition[transitionKey])
         ) {
+          shouldAnimate = true;
           target = {};
           animationSettings =
             this.transition === true || this.transition[transitionKey] === true
@@ -2543,10 +2578,18 @@ export function shaderAccessor<T extends Record<string, any> | number>(
         parseAndAssignShaderProps(key, value, target);
       }
 
-      this._writeShaderTarget(target);
+      this._writeShaderTarget(
+        target,
+        shouldAnimate
+          ? getEffectsShaderType(this._effects as StyleEffects)
+          : undefined,
+      );
 
-      if (animationSettings) {
-        this.animate({ shaderProps: target }, animationSettings).start();
+      if (shouldAnimate) {
+        this.animate(
+          { shaderProps: target },
+          animationSettings || this.animationSettings || {},
+        ).start();
       }
     },
     get(this: ElementNode) {
@@ -2568,6 +2611,7 @@ Object.defineProperties(ElementNode.prototype, {
   borderLeft: shaderAccessor<BorderStyle>('borderLeft'),
   borderRight: shaderAccessor<BorderStyle>('borderRight'),
   shadow: shaderAccessor<ShadowProps>('shadow'),
+  outline: shaderAccessor<OutlineStyle>('outline'),
   rounded: shaderAccessor<BorderRadius>('rounded'),
   // Alias for rounded
   borderRadius: shaderAccessor<BorderRadius>('rounded'),

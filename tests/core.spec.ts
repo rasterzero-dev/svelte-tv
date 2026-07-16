@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const renderer = vi.hoisted(() => ({
+  createShader: vi.fn((shaderKey, props) => ({ shaderKey, props })),
   createTexture: vi.fn(),
   stage: {
     platform: { fetch: vi.fn() },
@@ -13,12 +14,18 @@ vi.mock('../src/core/lightningInit.js', () => ({ renderer }));
 import {
   activeElement,
   applyNodeProps,
+  convertToShader,
   ElementNode,
   focusPath,
   hasFocus,
   mountNode,
   setActiveElementCore,
 } from '../src/core/index.js';
+import {
+  registerDefaultShaderRoundedClipWithOutline,
+  registerDefaultShaderRoundedWithOutline,
+  registerDefaultShaderRoundedWithOutlineAndEffects,
+} from '../src/core/shaders.js';
 import { navigableForwardFocus } from '../src/primitives/utils/handleNavigation.js';
 
 interface TestEffect {
@@ -44,6 +51,123 @@ describe('core', () => {
     const node = new ElementNode('view');
     node.color = '#11223344';
     expect(node.lng.color).toBe(0x11223344);
+  });
+
+  it('converts outline styles without replacing border or shadow props', () => {
+    const node = new ElementNode('view');
+
+    convertToShader(node, {
+      borderRadius: 12,
+      border: { w: 2, color: 0x11223344 },
+      shadow: { color: 0x00000080, projection: [1, 2, 3, 4] },
+      outline: {
+        width: 4,
+        color: '#abcdef80',
+        offset: 3,
+        opacity: 0.5,
+      },
+    });
+
+    expect(renderer.createShader).toHaveBeenLastCalledWith(
+      'roundedWithOutlineAndEffects',
+      expect.objectContaining({
+        radius: 12,
+        'border-w': 2,
+        'border-color': 0x11223344,
+        'shadow-color': 0x00000080,
+        'outline-width': 4,
+        'outline-color': 0xabcdef80,
+        'outline-offset': 3,
+        'outline-opacity': 0.5,
+      }),
+    );
+  });
+
+  it('uses the dedicated outline shader when no border or shadow is present', () => {
+    const node = new ElementNode('view');
+
+    convertToShader(node, {
+      borderRadius: 999,
+      outline: {
+        width: 4,
+        color: '#ffffffff',
+        offset: 4,
+        opacity: 1,
+      },
+    });
+
+    expect(renderer.createShader).toHaveBeenLastCalledWith(
+      'roundedWithOutline',
+      expect.objectContaining({
+        radius: 999,
+        'outline-width': 4,
+        'outline-color': 0xffffffff,
+        'outline-offset': 4,
+        'outline-opacity': 1,
+      }),
+    );
+  });
+
+  it('animates all outline shader props with transition true', () => {
+    const start = vi.fn();
+    const animate = vi.fn(() => ({ start }));
+    const node = renderedNode();
+    node.lng = {
+      shader: { shaderKey: 'roundedWithOutline', props: {} },
+      animate,
+    } as any;
+    node.transition = true;
+
+    node.outline = {
+      width: 6,
+      color: '#fedcba80',
+      offset: 2,
+      opacity: 0.25,
+    };
+
+    expect(animate).toHaveBeenCalledWith(
+      {
+        shaderProps: {
+          'outline-width': 6,
+          'outline-color': 0xfedcba80,
+          'outline-offset': 2,
+          'outline-opacity': 0.25,
+        },
+      },
+      { duration: 250, easing: 'ease-in-out' },
+    );
+    expect(start).toHaveBeenCalledOnce();
+
+    renderer.createShader.mockClear();
+    node.outline = { width: 0 };
+    expect(animate).toHaveBeenLastCalledWith(
+      { shaderProps: { 'outline-width': 0 } },
+      { duration: 250, easing: 'ease-in-out' },
+    );
+    expect(renderer.createShader).not.toHaveBeenCalled();
+  });
+
+  it('registers outline shaders for normal and rounded clipping paths', () => {
+    const shaders = new Map<string, any>();
+    const manager = {
+      stage: { renderer: { mode: 'webgl' } },
+      registerShaderType: vi.fn((key, shader) => shaders.set(key, shader)),
+    } as any;
+
+    registerDefaultShaderRoundedWithOutline(manager);
+    registerDefaultShaderRoundedWithOutlineAndEffects(manager);
+    registerDefaultShaderRoundedClipWithOutline(manager);
+
+    expect(shaders.get('roundedWithOutline').vertex).toContain('u_borderWidth');
+    expect(shaders.get('roundedWithOutline').fragment).toContain(
+      'u_outlineOpacity',
+    );
+    expect(shaders.get('roundedWithOutlineAndEffects').fragment).toContain(
+      'outlineAlpha',
+    );
+    expect(shaders.get('roundedClipWithOutline').fragment).toContain(
+      'outlineAlpha',
+    );
   });
 
   it('updates active element and focus path', () => {

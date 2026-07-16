@@ -6,6 +6,7 @@ import {
   ShaderBorderProps,
   ShaderHolePunchProps,
   ShaderLinearGradientProps,
+  ShaderOutlineProps,
   ShaderRadialGradientProps,
   ShaderRoundedProps,
   ShaderShadowProps,
@@ -46,12 +47,14 @@ export type DollarString = `$${string}`;
 export type BorderStyle = BorderStyleObject;
 export type SingleBorderStyle = SingleBorderStyleObject;
 export type BorderRadius = number | number[];
+export type OutlineStyle = AddColorString<Partial<ShaderOutlineProps>>;
 
 export interface Effects {
   linearGradient?: Partial<ShaderLinearGradientProps>;
   radialGradient?: Partial<ShaderRadialGradientProps>;
   holePunch?: Partial<ShaderHolePunchProps>;
   shadow?: Partial<ShaderShadowProps>;
+  outline?: OutlineStyle;
   rounded?: Partial<ShaderRoundedProps>;
   borderRadius?: Partial<BorderRadius>;
   border?: Partial<ShaderBorderProps>;
