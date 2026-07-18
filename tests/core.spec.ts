@@ -431,6 +431,30 @@ describe('core', () => {
     expect(narrow.width).toBe(300);
   });
 
+  it('runs child layout after stretching its cross axis', () => {
+    const column = new ElementNode('view');
+    const button = new ElementNode('view');
+    const background = new ElementNode('view');
+    const widths: number[] = [];
+
+    column.display = 'flex';
+    column.flexDirection = 'column';
+    column.alignItems = 'stretch';
+    column.width = 300;
+    column.height = 120;
+    button.display = 'flex';
+    button.width = 80;
+    button.height = 40;
+    button.onLayout = (target) => widths.push(target.width);
+    button.insertChild(background);
+    column.insertChild(button);
+
+    column.updateLayout();
+    column.updateLayout();
+
+    expect(widths).toEqual([300]);
+  });
+
   it('sizes implicit flex item wrappers from their content', () => {
     const row = new ElementNode('view');
     const wrappers = Array.from({ length: 3 }, () => {

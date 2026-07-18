@@ -1,5 +1,5 @@
 import { type ElementNode } from './elementNode.js';
-import { isTextNode, isElementText } from './utils.js';
+import { isFunction, isTextNode, isElementText } from './utils.js';
 
 function getScratch(node: ElementNode, size: number) {
   let scratch = node._flexLayoutScratch;
@@ -382,8 +382,11 @@ export default function calculateFlex(
         crossProp,
         crossCurrentPos + childMarginCrossStarts[idx]!,
       );
-      if (stretchedCrossSize !== currentCrossSize && c.display === 'flex') {
-        calculateFlex(c, crossDimension);
+      if (stretchedCrossSize !== currentCrossSize && c.hasChildren) {
+        if (c.display === 'flex') {
+          calculateFlex(c, crossDimension);
+        }
+        isFunction(c.onLayout) && c.onLayout.call(c, c);
       }
     }
   };
