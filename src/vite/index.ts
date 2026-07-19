@@ -319,16 +319,23 @@ export function svelteTvFonts(options: SvelteTvFontsOptions = {}): Plugin {
 
       await generateFonts();
 
-      const compactFonts = Object.fromEntries(
-        Object.entries(generatedFonts).map(([fontFamily, font]) => [
-          fontFamily,
-          compactFontData(font),
-        ]),
-      );
+      const compactFonts: Record<string, CompactGeneratedFontData> = {};
+      for (const [fontFamily, font] of Object.entries(generatedFonts)) {
+        compactFonts[fontFamily] = compactFontData(font);
+      }
 
       return [
         `const compactFonts = ${JSON.stringify(compactFonts)};`,
-        `export const generatedFonts = Object.fromEntries(Object.entries(compactFonts).map(([fontFamily, font]) => [fontFamily, { chars: font.c.map(([id, xadvance]) => ({ id, xadvance })), kernings: font.k.map(([first, second, amount]) => ({ first, second, amount })), info: { ...(font.i[0] ? { face: font.i[0] } : {}), size: font.i[1] } }]));`,
+        'const generatedFonts = {};',
+        'for (const fontFamily in compactFonts) {',
+        '  const font = compactFonts[fontFamily];',
+        '  generatedFonts[fontFamily] = {',
+        '    chars: font.c.map(([id, xadvance]) => ({ id, xadvance })),',
+        '    kernings: font.k.map(([first, second, amount]) => ({ first, second, amount })),',
+        '    info: { ...(font.i[0] ? { face: font.i[0] } : {}), size: font.i[1] },',
+        '  };',
+        '}',
+        'export { generatedFonts };',
         `export const generatedFontManifest = ${JSON.stringify(generatedFontManifest)};`,
       ].join('\n');
     },
