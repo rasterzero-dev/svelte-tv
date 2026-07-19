@@ -34,6 +34,12 @@ type GeneratedFontManifestEntry = {
   atlasDataUrl: string;
 };
 
+type CompactGeneratedFontData = {
+  c: Array<[number, number]>;
+  k: Array<[number, number, number]>;
+  i: [string | undefined, number];
+};
+
 export interface SvelteTvFontsOptions {
   input?: string;
   output?: string;
@@ -120,6 +126,18 @@ async function readCache(cachePath: string) {
 
 async function readFontData(filePath: string) {
   return JSON.parse(await fs.readFile(filePath, 'utf8')) as GeneratedFontData;
+}
+
+function compactFontData(font: GeneratedFontData): CompactGeneratedFontData {
+  return {
+    c: font.chars.map(({ id, xadvance }) => [id, xadvance]),
+    k: font.kernings.map(({ first, second, amount }) => [
+      first,
+      second,
+      amount,
+    ]),
+    i: [font.info.face, font.info.size],
+  };
 }
 
 async function outputExists(
@@ -301,8 +319,16 @@ export function svelteTvFonts(options: SvelteTvFontsOptions = {}): Plugin {
 
       await generateFonts();
 
+      const compactFonts = Object.fromEntries(
+        Object.entries(generatedFonts).map(([fontFamily, font]) => [
+          fontFamily,
+          compactFontData(font),
+        ]),
+      );
+
       return [
-        `export const generatedFonts = ${JSON.stringify(generatedFonts)};`,
+        `const compactFonts = ${JSON.stringify(compactFonts)};`,
+        `export const generatedFonts = Object.fromEntries(Object.entries(compactFonts).map(([fontFamily, font]) => [fontFamily, { chars: font.c.map(([id, xadvance]) => ({ id, xadvance })), kernings: font.k.map(([first, second, amount]) => ({ first, second, amount })), info: { ...(font.i[0] ? { face: font.i[0] } : {}), size: font.i[1] } }]));`,
         `export const generatedFontManifest = ${JSON.stringify(generatedFontManifest)};`,
       ].join('\n');
     },
